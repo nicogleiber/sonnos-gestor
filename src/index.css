@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sonnos-red: #e41d28;
+  --color-sonnos-red-hover: #c71620;
+  --color-sonnos-red-dark: #a31119;
+  --color-sonnos-red-light: #fde8e9;
+  --color-sonnos-dark-900: #121212;
+  --color-sonnos-dark-800: #1a1a1a;
+  --color-sonnos-dark-700: #242424;
+  --color-sonnos-dark-600: #2e2e2e;
+  --color-sonnos-border: #e0e0e0;
+  --color-sonnos-bg: #f8f9fa;
+  --color-sonnos-surface: #f1f3f5;
+  --color-sonnos-text-main: #1a1a1a;
+  --color-sonnos-text-muted: #666666;
+}
+
+body {
+  background-color: #f8f9fa;
+  color: #1a1a1a;
+}
