@@ -1,98 +1,69 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
+  Users,
   UserPlus,
   Search,
-  X,
-  Check,
-  ChevronDown,
+  Filter,
   CreditCard,
-  QrCode,
   Calendar,
-  AlertTriangle,
+  Phone,
+  Mail,
+  CheckCircle2,
+  AlertCircle,
   Clock,
+  QrCode,
+  X,
   Sparkles,
   ReceiptText,
   BadgeCheck,
-  DollarSign,
+  Building2,
+  CalendarDays,
+  MessageSquare,
+  History,
+  CheckSquare,
+  Square,
+  User,
+  Trash2,
+  Edit2
 } from 'lucide-react'
-import { socios as initialSocios } from '../data/mockData'
-import { formatearFecha, getEstadoPago } from '../utils/paymentUtils'
+import { useSocios } from '../context/SociosContext'
 import { useTarifas } from '../context/TarifasContext'
+import { getEstadoPago, formatearFecha } from '../utils/paymentUtils'
+import WhatsAppModal from '../components/WhatsAppModal'
 
 // ============================================
-// COMPONENTE: INSIGNIA / CHIP DE ESTADO DINÁMICO
-// ============================================
-function StateBadge({ socio, onOpenCobro }) {
-  const estadoInfo = getEstadoPago(socio.fechaVto)
-
-  if (estadoInfo.key === 'al-dia') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <Check size={13} className="stroke-[3]" />
-        Al Día
-        <span className="text-[10px] text-emerald-600 font-medium">({estadoInfo.diasRestantes}d)</span>
-      </span>
-    )
-  }
-
-  if (estadoInfo.key === 'cobro') {
-    return (
-      <button
-        onClick={() => onOpenCobro(socio)}
-        className="group inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100 hover:border-amber-400 transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
-        title="Hacé clic para cobrar la cuota"
-      >
-        <Clock size={13} className="text-amber-600 animate-pulse" />
-        En Fecha de Cobro
-        <span className="text-[10px] bg-amber-200/80 text-amber-800 px-1.5 py-0.2 rounded font-black uppercase">
-          Cobrar
-        </span>
-      </button>
-    )
-  }
-
-  // Cuota Vencida
-  return (
-    <button
-      onClick={() => onOpenCobro(socio)}
-      className="group inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#fde8e9] text-[#e41d28] border border-[#e41d28]/30 hover:bg-[#fbd3d5] hover:border-[#e41d28] transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
-      title="Hacé clic para cobrar la cuota"
-    >
-      <AlertTriangle size={13} className="text-[#e41d28]" />
-      Cuota Vencida
-      <span className="text-[10px] bg-[#e41d28] text-white px-1.5 py-0.2 rounded font-black uppercase">
-        Cobrar
-      </span>
-    </button>
-  )
-}
-
-// ============================================
-// MODAL: NUEVO SOCIO (Conexión dinámica con Tarifas)
+// MODAL: NUEVO SOCIO
 // ============================================
 function ModalNuevoSocio({ onClose, onSave }) {
-  const { planesActivos, getPlanByName, calcularVencimientoPorPlan } = useTarifas()
+  const { planesActivos, calcularVencimientoPorPlan } = useTarifas()
 
-  const defaultPlan = planesActivos[0]?.nombre || 'Mensual'
   const [form, setForm] = useState({
     nombre: '',
     apellido: '',
     telefono: '',
     email: '',
-    suscripcion: defaultPlan,
+    dni: '',
+    genero: 'Prefiero no decirlo',
+    suscripcion: planesActivos[0]?.nombre || 'Pase Libre Mensual',
+    observaciones: '',
   })
 
-  // Fecha calculada dinámicamente según el plan seleccionado en Tarifas
-  const planSeleccionado = getPlanByName(form.suscripcion)
-  const fechaVtoCalculada = calcularVencimientoPorPlan(new Date(), form.suscripcion)
+  const fechaVencimientoCalculada = calcularVencimientoPorPlan(new Date(), form.suscripcion)
 
-  const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setForm(prev => ({ ...prev, [name]: value }))
+  }
 
-  const handleSubmit = e => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     onSave({
       ...form,
-      fechaVto: fechaVtoCalculada,
+      tipoSuscripcion: form.suscripcion,
+      fechaVencimiento: fechaVencimientoCalculada,
+      fechaVto: fechaVencimientoCalculada,
+      fechaAlta: new Date().toISOString(),
+      estadoPago: 'Al Día',
     })
     onClose()
   }
@@ -100,15 +71,15 @@ function ModalNuevoSocio({ onClose, onSave }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-[#e0e0e0]">
-        {/* Header */}
+        {/* Header Modal */}
         <div className="bg-[#121212] border-b border-[#242424] px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#e41d28] flex items-center justify-center text-white">
-              <UserPlus size={18} />
+            <div className="w-8 h-8 rounded-lg bg-[#e41d28] flex items-center justify-center text-white font-bold">
+              +
             </div>
             <div>
               <h3 className="text-white font-black text-lg tracking-wide">Nuevo Socio</h3>
-              <p className="text-gray-400 text-xs">Tarifas y vencimiento sincronizados en tiempo real</p>
+              <p className="text-gray-400 text-xs">Ingreso y cálculo automático de vencimiento</p>
             </div>
           </div>
           <button
@@ -129,8 +100,8 @@ function ModalNuevoSocio({ onClose, onSave }) {
                 required
                 value={form.nombre}
                 onChange={handleChange}
-                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
                 placeholder="Ej: Marcos"
+                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
               />
             </div>
             <div>
@@ -140,85 +111,94 @@ function ModalNuevoSocio({ onClose, onSave }) {
                 required
                 value={form.apellido}
                 onChange={handleChange}
+                placeholder="Ej: Rossi"
                 className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
-                placeholder="Ej: Benítez"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">DNI / Documento</label>
+              <input
+                name="dni"
+                value={form.dni}
+                onChange={handleChange}
+                placeholder="Ej: 38192831"
+                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Género</label>
+              <select
+                name="genero"
+                value={form.genero}
+                onChange={handleChange}
+                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a] font-medium"
+              >
+                <option value="Hombre">Hombre</option>
+                <option value="Mujer">Mujer</option>
+                <option value="Prefiero no decirlo">Prefiero no decirlo</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Teléfono (WhatsApp)</label>
+              <input
+                name="telefono"
+                required
+                value={form.telefono}
+                onChange={handleChange}
+                placeholder="11XXXXXXXX"
+                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Email</label>
+              <input
+                name="email"
+                type="email"
+                required
+                value={form.email}
+                onChange={handleChange}
+                placeholder="socio@email.com"
+                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Teléfono</label>
-            <input
-              name="telefono"
-              value={form.telefono}
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Tipo de Suscripción</label>
+            <select
+              name="suscripcion"
+              value={form.suscripcion}
               onChange={handleChange}
-              className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
-              placeholder="011-XXXX-XXXX"
-            />
+              className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a] font-medium"
+            >
+              {planesActivos.map(p => (
+                <option key={p.id} value={p.nombre}>
+                  {p.nombre} ({p.meses} {p.meses === 1 ? 'mes' : 'meses'} - ${p.precio.toLocaleString('es-AR')})
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Email</label>
-            <input
-              name="email"
-              type="email"
-              value={form.email}
-              onChange={handleChange}
-              className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
-              placeholder="socio@email.com"
-            />
-          </div>
-
-          {/* Tipo de Suscripción poblado dinámicamente desde el módulo Tarifas */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-                Tipo de Suscripción (Planes de Musculación)
-              </label>
-              <span className="text-[10px] text-gray-400 font-medium">Desde Tarifas</span>
-            </div>
-            <div className="relative">
-              <select
-                name="suscripcion"
-                value={form.suscripcion}
-                onChange={handleChange}
-                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a] font-bold"
-              >
-                {planesActivos.map(p => (
-                  <option key={p.id} value={p.nombre}>
-                    {p.nombre} — ${p.precio.toLocaleString('es-AR')} ({p.meses} {p.meses === 1 ? 'mes' : 'meses'})
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Fecha de Vencimiento Calculada Automáticamente (Read-Only) */}
-          <div className="p-4 rounded-2xl bg-[#f8f9fa] border border-[#e0e0e0]">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                <Calendar size={14} className="text-[#e41d28]" />
-                Fecha de Vencimiento (Automática)
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                Auto +{planSeleccionado.meses} {planSeleccionado.meses === 1 ? 'mes' : 'meses'}
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between mt-2">
-              <p className="text-base font-black text-[#1a1a1a]">
-                {formatearFecha(fechaVtoCalculada)}
-              </p>
-              <p className="text-xs text-gray-500 font-mono">
-                {fechaVtoCalculada}
+          {/* Campo Informativo: Fecha de Vencimiento Calculada */}
+          <div className="p-4 rounded-2xl bg-[#fde8e9] border border-[#e41d28]/30 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold text-[#e41d28] uppercase tracking-wide">Fecha de Vencimiento Calculada</p>
+              <p className="text-base font-black text-[#1a1a1a] mt-0.5">
+                {formatearFecha(fechaVencimientoCalculada)}
               </p>
             </div>
-            <p className="text-[11px] text-gray-500 mt-1">
-              Calculada a partir de hoy con el arancel vigente de <strong>${planSeleccionado.precio?.toLocaleString('es-AR')}</strong>.
-            </p>
+            <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white text-[#e41d28] border border-[#e41d28]/30 shadow-xs">
+              Automático ⚡
+            </span>
           </div>
 
-          {/* Actions */}
+          {/* Botones */}
           <div className="flex gap-3 pt-3 border-t border-[#e0e0e0]">
             <button
               type="button"
@@ -245,194 +225,81 @@ function ModalNuevoSocio({ onClose, onSave }) {
 // ============================================
 function ModalCobro({ socio, onClose, onMarcarPagado }) {
   const { getPlanByName, calcularVencimientoPorPlan } = useTarifas()
-  const [metodo, setMetodo] = useState('mp') // 'mp' | 'efectivo'
+  const [metodo, setMetodo] = useState('mp')
 
-  const planInfo = getPlanByName(socio.suscripcion)
-  const nuevaFechaVto = calcularVencimientoPorPlan(new Date(), socio.suscripcion)
-  const estadoActual = getEstadoPago(socio.fechaVto)
+  const planInfo = getPlanByName(socio.suscripcion || socio.tipoSuscripcion)
+  const nuevaFechaVto = calcularVencimientoPorPlan(new Date(), socio.suscripcion || socio.tipoSuscripcion)
+  const estadoActual = getEstadoPago(socio.fechaVencimiento || socio.fechaVto)
 
   const handleConfirmarPago = () => {
-    onMarcarPagado(socio.id, nuevaFechaVto, metodo)
+    onMarcarPagado(socio.id, nuevaFechaVto, metodo, planInfo?.precio || 18000)
     onClose()
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-[#e0e0e0]">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-[#e0e0e0]">
         {/* Header Modal */}
-        <div className="bg-[#121212] border-b border-[#242424] px-6 py-5 flex items-center justify-between">
+        <div className="bg-[#121212] border-b border-[#242424] px-6 py-5 flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#e41d28] text-white flex items-center justify-center font-black text-base shadow-md">
-              {socio.nombre[0]}{socio.apellido[0]}
+            <div className="w-10 h-10 bg-[#e41d28] rounded-xl flex items-center justify-center shadow-lg shadow-red-600/30">
+              <CreditCard size={20} className="text-white" />
             </div>
             <div>
-              <h3 className="text-white font-black text-lg tracking-wide">
-                Cobrar Cuota — {socio.nombre} {socio.apellido}
-              </h3>
-              <p className="text-gray-400 text-xs">
-                Plan {socio.suscripcion} · Estado actual: <span className={estadoActual.key === 'vencido' ? 'text-[#e41d28] font-bold' : 'text-amber-400 font-bold'}>{estadoActual.estado}</span>
-              </p>
+              <h3 className="font-black text-lg tracking-tight">Cobrar Cuota</h3>
+              <p className="text-xs text-gray-400">Renovación de membresía Sonnos</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-[#242424] transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white p-1 rounded-lg">
             <X size={20} />
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
-          {/* Desglose del Monto */}
-          <div className="bg-[#f8f9fa] rounded-2xl border border-[#e0e0e0] p-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#e0e0e0]">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Concepto</p>
-                <p className="text-sm font-black text-[#1a1a1a]">Renovación Plan {planInfo.nombre}</p>
-                <p className="text-[11px] text-gray-400">Arancel fijado en Tarifas</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Monto Total</p>
-                <p className="text-2xl font-black text-[#e41d28] tracking-tight">
-                  ${planInfo.precio.toLocaleString('es-AR')}
-                </p>
-              </div>
+        {/* Resumen Socio */}
+        <div className="p-6 space-y-4">
+          <div className="p-4 rounded-2xl bg-[#f8f9fa] border border-[#e0e0e0] flex items-center justify-between">
+            <div>
+              <h4 className="font-black text-base text-[#1a1a1a]">{socio.nombre} {socio.apellido}</h4>
+              <p className="text-xs text-gray-500 mt-0.5">Plan {socio.tipoSuscripcion || socio.suscripcion}</p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 pt-3 text-xs">
-              <div>
-                <span className="text-gray-400 block font-medium">Vencimiento anterior:</span>
-                <span className="font-bold text-gray-700">{formatearFecha(socio.fechaVto)}</span>
-              </div>
-              <div className="text-right">
-                <span className="text-emerald-600 block font-bold">Nuevo vencimiento:</span>
-                <span className="font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md inline-block">
-                  {formatearFecha(nuevaFechaVto)} (+{planInfo.meses}m)
-                </span>
-              </div>
+            <div className="text-right">
+              <p className="text-[10px] uppercase font-bold text-gray-400">Total a Cobrar</p>
+              <p className="text-xl font-black text-[#e41d28]">
+                ${(planInfo?.precio || 18000).toLocaleString('es-AR')}
+              </p>
             </div>
           </div>
 
-          {/* Selector de Método de Pago */}
-          <div className="flex bg-[#f1f3f5] p-1 rounded-2xl border border-[#e0e0e0]">
+          {/* Selector de Método */}
+          <div className="grid grid-cols-2 gap-2 bg-[#f1f3f5] p-1 rounded-2xl border border-[#e0e0e0]">
             <button
               type="button"
               onClick={() => setMetodo('mp')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                metodo === 'mp'
-                  ? 'bg-[#009ee3] text-white shadow-md'
-                  : 'text-gray-600 hover:text-[#1a1a1a]'
+              className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                metodo === 'mp' ? 'bg-[#009ee3] text-white shadow-md' : 'text-gray-600 hover:text-[#1a1a1a]'
               }`}
             >
-              <QrCode size={15} />
-              Mercado Pago QR
+              📱 Mercado Pago
             </button>
             <button
               type="button"
               onClick={() => setMetodo('efectivo')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                metodo === 'efectivo'
-                  ? 'bg-[#121212] text-white shadow-md'
-                  : 'text-gray-600 hover:text-[#1a1a1a]'
+              className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                metodo === 'efectivo' ? 'bg-[#121212] text-white shadow-md' : 'text-gray-600 hover:text-[#1a1a1a]'
               }`}
             >
-              <DollarSign size={15} />
-              Efectivo / Transferencia
+              💵 Efectivo / Transf.
             </button>
           </div>
 
-          {/* Contenido según método */}
-          {metodo === 'mp' ? (
-            <div className="bg-gradient-to-b from-[#f4faff] to-[#ffffff] rounded-2xl border border-[#009ee3]/30 p-5 text-center">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#009ee3]/10 text-[#009ee3] border border-[#009ee3]/20 mb-3">
-                <span className="w-2 h-2 rounded-full bg-[#009ee3] animate-ping" />
-                <span className="text-xs font-black uppercase tracking-wider">Mercado Pago Oficial</span>
-              </div>
-
-              {/* QR Simulado */}
-              <div className="w-44 h-44 mx-auto bg-white p-3 rounded-2xl border-2 border-[#009ee3]/30 shadow-lg flex flex-col items-center justify-center relative">
-                <svg viewBox="0 0 100 100" className="w-full h-full text-[#121212]">
-                  <rect width="100" height="100" fill="white" />
-                  <rect x="5" y="5" width="26" height="26" fill="currentColor" rx="4" />
-                  <rect x="9" y="9" width="18" height="18" fill="white" rx="2" />
-                  <rect x="13" y="13" width="10" height="10" fill="#009ee3" rx="2" />
-
-                  <rect x="69" y="5" width="26" height="26" fill="currentColor" rx="4" />
-                  <rect x="73" y="9" width="18" height="18" fill="white" rx="2" />
-                  <rect x="77" y="13" width="10" height="10" fill="#009ee3" rx="2" />
-
-                  <rect x="5" y="69" width="26" height="26" fill="currentColor" rx="4" />
-                  <rect x="9" y="73" width="18" height="18" fill="white" rx="2" />
-                  <rect x="13" y="77" width="10" height="10" fill="#009ee3" rx="2" />
-
-                  <rect x="36" y="8" width="6" height="6" fill="currentColor" />
-                  <rect x="46" y="8" width="6" height="6" fill="currentColor" />
-                  <rect x="56" y="8" width="6" height="6" fill="currentColor" />
-                  <rect x="36" y="18" width="12" height="6" fill="currentColor" />
-                  <rect x="52" y="18" width="6" height="12" fill="currentColor" />
-
-                  <rect x="8" y="36" width="6" height="12" fill="currentColor" />
-                  <rect x="18" y="36" width="12" height="6" fill="currentColor" />
-                  <rect x="8" y="52" width="12" height="6" fill="currentColor" />
-
-                  <rect x="36" y="36" width="28" height="28" fill="#009ee3" rx="4" />
-                  <text x="50" y="54" fontSize="11" fill="white" fontWeight="900" textAnchor="middle">MP</text>
-
-                  <rect x="68" y="36" width="6" height="12" fill="currentColor" />
-                  <rect x="78" y="42" width="14" height="6" fill="currentColor" />
-                  <rect x="68" y="54" width="24" height="6" fill="currentColor" />
-
-                  <rect x="36" y="68" width="12" height="6" fill="currentColor" />
-                  <rect x="52" y="68" width="6" height="12" fill="currentColor" />
-                  <rect x="62" y="78" width="12" height="6" fill="currentColor" />
-                  <rect x="78" y="68" width="14" height="6" fill="currentColor" />
-                  <rect x="36" y="78" width="6" height="14" fill="currentColor" />
-                  <rect x="46" y="86" width="12" height="6" fill="currentColor" />
-                  <rect x="62" y="86" width="14" height="6" fill="currentColor" />
-                  <rect x="80" y="86" width="12" height="6" fill="currentColor" />
-                </svg>
-              </div>
-
-              <p className="text-xs font-bold text-[#1a1a1a] mt-3">
-                Escaneá con la app de Mercado Pago para pagar
-              </p>
-              <p className="text-[11px] text-gray-500 mt-0.5">
-                Alias de Cobro: <strong className="font-mono text-[#009ee3]">sonnos.gestor.mp</strong>
-              </p>
-            </div>
-          ) : (
-            <div className="bg-[#f8f9fa] rounded-2xl border border-[#e0e0e0] p-5 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#121212] text-white flex items-center justify-center mx-auto mb-3">
-                <ReceiptText size={26} className="text-[#e41d28]" />
-              </div>
-              <h4 className="font-black text-[#1a1a1a] text-sm">Cobro en Mostrador / Transferencia</h4>
-              <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                Registra el cobro manual recibido en caja en efectivo o transferencia bancaria directa.
-              </p>
-              <div className="mt-3 p-2.5 bg-white rounded-xl border border-[#e0e0e0] text-xs font-mono text-gray-600">
-                CVU: 0000003100045892110293 · CUIT: 30-71829304-9
-              </div>
-            </div>
-          )}
-
-          {/* Botón Principal de Confirmación */}
-          <div className="space-y-2 pt-2">
-            <button
-              type="button"
-              onClick={handleConfirmarPago}
-              className="w-full flex items-center justify-center gap-2 bg-[#e41d28] text-white py-3.5 px-4 rounded-2xl text-sm font-black hover:bg-[#c71620] transition-all shadow-lg shadow-red-600/30 uppercase tracking-wider active:scale-98 cursor-pointer"
-            >
-              <BadgeCheck size={18} />
-              Marcar como Pagado ({metodo === 'mp' ? 'Mercado Pago' : 'Efectivo / Transf.'})
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full text-xs font-bold text-gray-500 hover:text-gray-800 py-2 transition-colors cursor-pointer"
-            >
-              Cancelar y volver
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleConfirmarPago}
+            className="w-full flex items-center justify-center gap-2 bg-[#e41d28] text-white py-3.5 px-4 rounded-2xl text-sm font-black hover:bg-[#c71620] transition-all shadow-lg shadow-red-600/30 uppercase tracking-wider cursor-pointer"
+          >
+            <BadgeCheck size={18} />
+            Confirmar y Registrar Pago
+          </button>
         </div>
       </div>
     </div>
@@ -440,76 +307,100 @@ function ModalCobro({ socio, onClose, onMarcarPagado }) {
 }
 
 // ============================================
-// PÁGINA PRINCIPAL DE SOCIOS
+// PÁGINA PRINCIPAL: SOCIOS
 // ============================================
 export default function Socios() {
+  const { socios, addSocio, deleteSocio, registrarPago } = useSocios()
   const { planes } = useTarifas()
-  const [socios, setSocios] = useState(initialSocios)
+
   const [busqueda, setBusqueda] = useState('')
   const [filtroSub, setFiltroSub] = useState('Todos')
   const [filtroEstado, setFiltroEstado] = useState('Todos')
+  const [filtroDesde, setFiltroDesde] = useState('')
+  const [filtroHasta, setFiltroHasta] = useState('')
+  const [filtroAbandonos, setFiltroAbandonos] = useState(false)
+
   const [showModalNuevo, setShowModalNuevo] = useState(false)
   const [socioACobrar, setSocioACobrar] = useState(null)
+  const [sociosSeleccionados, setSociosSeleccionados] = useState([])
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
-
-  // Guardar nuevo socio
-  const handleSaveNuevo = (form) => {
-    const nuevoSocio = {
-      id: Date.now(),
-      ...form,
-    }
-    setSocios(prev => [nuevoSocio, ...prev])
-    mostrarToast(`✅ Socio ${form.nombre} ${form.apellido} registrado con éxito.`)
-  }
-
-  // Marcar como pagado y renovar fecha de vencimiento
-  const handleMarcarPagado = (socioId, nuevoVencimiento, metodoPago) => {
-    setSocios(prev =>
-      prev.map(s => {
-        if (s.id === socioId) {
-          return {
-            ...s,
-            fechaVto: nuevoVencimiento,
-          }
-        }
-        return s
-      })
-    )
-    const metodoLabel = metodoPago === 'mp' ? 'Mercado Pago' : 'Efectivo / Transferencia'
-    mostrarToast(`🎉 ¡Pago registrado vía ${metodoLabel}! Cuota renovada al día.`)
-  }
 
   const mostrarToast = (msg) => {
     setToastMessage(msg)
-    setTimeout(() => {
-      setToastMessage(null)
-    }, 4000)
+    setTimeout(() => setToastMessage(null), 3500)
   }
 
-  // Filtrado dinámico
+  // Checkbox handlers
+  const toggleSelectSocio = (id) => {
+    setSociosSeleccionados(prev =>
+      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+    )
+  }
+
+  const handleSelectAll = (filteredList) => {
+    if (sociosSeleccionados.length === filteredList.length) {
+      setSociosSeleccionados([])
+    } else {
+      setSociosSeleccionados(filteredList.map(s => s.id))
+    }
+  }
+
+  // Filtrado
   const filtered = socios.filter(s => {
-    const matchBusqueda = `${s.nombre} ${s.apellido} ${s.email} ${s.telefono}`.toLowerCase().includes(busqueda.toLowerCase())
-    const matchSub = filtroSub === 'Todos' || s.suscripcion === filtroSub
+    const matchBusqueda = `${s.nombre} ${s.apellido} ${s.email} ${s.telefono} ${s.dni || ''}`.toLowerCase().includes(busqueda.toLowerCase())
+    const subActual = s.tipoSuscripcion || s.suscripcion
+    const matchSub = filtroSub === 'Todos' || subActual === filtroSub
 
-    const estadoInfo = getEstadoPago(s.fechaVto)
+    const estadoInfo = getEstadoPago(s.fechaVencimiento || s.fechaVto)
     let matchEstado = true
-    if (filtroEstado === 'Al día') matchEstado = estadoInfo.key === 'al-dia'
-    else if (filtroEstado === 'En Fecha de Cobro') matchEstado = estadoInfo.key === 'cobro'
-    else if (filtroEstado === 'Cuota Vencida') matchEstado = estadoInfo.key === 'vencido'
+    if (filtroEstado !== 'Todos') {
+      matchEstado = estadoInfo.label.toLowerCase() === filtroEstado.toLowerCase()
+    }
 
-    return matchBusqueda && matchSub && matchEstado
+    // Filtro por fecha de alta
+    let matchFechas = true
+    if (filtroDesde && s.fechaAlta) {
+      matchFechas = matchFechas && new Date(s.fechaAlta) >= new Date(filtroDesde)
+    }
+    if (filtroHasta && s.fechaAlta) {
+      const h = new Date(filtroHasta)
+      h.setHours(23, 59, 59)
+      matchFechas = matchFechas && new Date(s.fechaAlta) <= h
+    }
+
+    // Filtro rápido: Abandonos Históricos (+6 meses / 180 días)
+    if (filtroAbandonos) {
+      const hace6Meses = new Date()
+      hace6Meses.setDate(hace6Meses.getDate() - 180)
+      const vto = new Date(s.fechaVencimiento || s.fechaVto)
+      return vto <= hace6Meses
+    }
+
+    return matchBusqueda && matchSub && matchEstado && matchFechas
   })
 
-  // Contadores dinámicos
-  const totalAlDia = socios.filter(s => getEstadoPago(s.fechaVto).key === 'al-dia').length
-  const totalEnCobro = socios.filter(s => getEstadoPago(s.fechaVto).key === 'cobro').length
-  const totalVencidos = socios.filter(s => getEstadoPago(s.fechaVto).key === 'vencido').length
+  // Contadores para chips
+  const totalAlDia = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'al-dia').length
+  const totalEnCobro = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'cobro').length
+  const totalVencidos = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'vencido').length
+  const totalInactivos = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'inactivo').length
+
+  const handleConfirmarCobro = async (id, nuevaFechaVto, metodo, monto) => {
+    const metodoLabel = metodo === 'mp' ? 'Mercado Pago' : 'Efectivo / Transferencia'
+    await registrarPago(id, {
+      monto,
+      metodoPago: metodo === 'mp' ? 'Mercado Pago' : 'Efectivo',
+      nuevaFechaVto
+    })
+    mostrarToast(`🎉 ¡Pago registrado vía ${metodoLabel}! Cuota renovada al día.`)
+  }
 
   const listaOpcionesPlanes = ['Todos', ...planes.map(p => p.nombre)]
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 relative">
-      {/* Toast Notification */}
+    <div className="p-4 sm:p-6 lg:p-8 relative space-y-6">
+      {/* Toast */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#121212] text-white border border-[#242424] px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom duration-300">
           <Sparkles size={18} className="text-[#e41d28]" />
@@ -521,7 +412,10 @@ export default function Socios() {
       {showModalNuevo && (
         <ModalNuevoSocio
           onClose={() => setShowModalNuevo(false)}
-          onSave={handleSaveNuevo}
+          onSave={async (nuevo) => {
+            await addSocio(nuevo)
+            mostrarToast('✅ Socio registrado exitosamente en MongoDB Atlas.')
+          }}
         />
       )}
 
@@ -529,151 +423,283 @@ export default function Socios() {
         <ModalCobro
           socio={socioACobrar}
           onClose={() => setSocioACobrar(null)}
-          onMarcarPagado={handleMarcarPagado}
+          onMarcarPagado={handleConfirmarCobro}
         />
       )}
 
-      {/* Header section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      {showWhatsAppModal && (
+        <WhatsAppModal
+          isOpen={showWhatsAppModal}
+          onClose={() => setShowWhatsAppModal(false)}
+          sociosSeleccionados={socios.filter(s => sociosSeleccionados.includes(s.id))}
+        />
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-[#1a1a1a] tracking-tight">Gestión de Socios</h2>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold mt-1">
-            <span className="text-gray-500">{socios.length} registrados ·</span>
-            <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              {totalAlDia} al día
+          <div className="flex items-center gap-2 mb-1">
+            <span className="p-1.5 rounded-lg bg-[#fde8e9] text-[#e41d28]">
+              <Users size={18} />
             </span>
-            <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300">
-              {totalEnCobro} por cobrar
-            </span>
-            <span className="text-[#e41d28] bg-[#fde8e9] px-2 py-0.5 rounded-md border border-[#e41d28]/20">
-              {totalVencidos} vencidos
-            </span>
+            <h2 className="text-2xl font-black text-[#1a1a1a] tracking-tight">Gestión de Socios</h2>
+          </div>
+          <p className="text-gray-500 text-sm">
+            Padrón de {socios.length} socios registrados · Conexión directa a MongoDB
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          {sociosSeleccionados.length > 0 && (
+            <button
+              onClick={() => setShowWhatsAppModal(true)}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/30 cursor-pointer animate-in fade-in"
+            >
+              <MessageSquare size={16} />
+              <span>Mensaje WhatsApp ({sociosSeleccionados.length})</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowModalNuevo(true)}
+            className="flex items-center gap-2 bg-[#e41d28] text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-[#c71620] transition-all shadow-lg shadow-red-600/30 cursor-pointer active:scale-95"
+          >
+            <UserPlus size={16} className="stroke-[3]" />
+            <span>Nuevo Socio</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Chips Interactivos de Estado de Pago (Filtrado con 1 Clic) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Al Día', count: totalAlDia, key: 'Al día', color: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
+          { label: 'En Fecha de Cobro', count: totalEnCobro, key: 'En Fecha de Cobro', color: 'border-amber-200 bg-amber-50 text-amber-900' },
+          { label: 'Cuota Vencida', count: totalVencidos, key: 'Cuota Vencida', color: 'border-red-200 bg-red-50 text-red-700' },
+          { label: 'Inactivos (+90d)', count: totalInactivos, key: 'Inactivo', color: 'border-gray-300 bg-gray-100 text-gray-700' },
+        ].map(chip => (
+          <button
+            key={chip.label}
+            type="button"
+            onClick={() => {
+              setFiltroAbandonos(false)
+              setFiltroEstado(prev => prev === chip.key ? 'Todos' : chip.key)
+            }}
+            className={`p-4 rounded-2xl border transition-all text-left cursor-pointer flex items-center justify-between ${
+              filtroEstado === chip.key
+                ? `${chip.color} ring-2 ring-current font-black shadow-sm`
+                : 'bg-white border-[#e0e0e0] hover:bg-[#f8f9fa]'
+            }`}
+          >
+            <div>
+              <p className="text-xs font-bold text-gray-500 uppercase">{chip.label}</p>
+              <p className="text-2xl font-black text-[#1a1a1a] mt-0.5">{chip.count}</p>
+            </div>
+            <span className="text-[10px] font-bold text-gray-400">Filtrar</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Barra de Filtros y Rango de Fechas */}
+      <div className="bg-white rounded-3xl border border-[#e0e0e0] p-4 shadow-sm space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          {/* Buscador */}
+          <div className="relative md:col-span-2">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              placeholder="Buscar por nombre, DNI, teléfono o email..."
+              className="w-full bg-[#f8f9fa] border border-[#e0e0e0] focus:bg-white focus:border-[#e41d28] rounded-2xl pl-10 pr-4 py-2 text-xs font-bold text-[#1a1a1a]"
+            />
+          </div>
+
+          {/* Selector de Plan */}
+          <div>
+            <select
+              value={filtroSub}
+              onChange={e => setFiltroSub(e.target.value)}
+              className="w-full bg-[#f8f9fa] border border-[#e0e0e0] rounded-2xl px-3 py-2 text-xs font-bold text-[#1a1a1a]"
+            >
+              {listaOpcionesPlanes.map(p => (
+                <option key={p} value={p}>{p === 'Todos' ? 'Todos los planes' : p}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtro Rápido: Abandonos Históricos (+6 meses) */}
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroAbandonos(prev => !prev)
+                setFiltroEstado('Todos')
+              }}
+              className={`w-full py-2 px-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                filtroAbandonos
+                  ? 'bg-[#121212] text-white shadow-sm'
+                  : 'bg-[#f8f9fa] text-gray-600 border border-[#e0e0e0] hover:bg-[#f1f3f5]'
+              }`}
+            >
+              <History size={14} className={filtroAbandonos ? 'text-[#e41d28]' : ''} />
+              <span>Abandonos (+6 meses)</span>
+            </button>
           </div>
         </div>
-        <button
-          onClick={() => setShowModalNuevo(true)}
-          className="flex items-center justify-center gap-2 bg-[#e41d28] text-white px-5 py-3 rounded-2xl text-sm font-black hover:bg-[#c71620] transition-all shadow-lg shadow-red-600/30 uppercase tracking-wider active:scale-95 cursor-pointer"
-        >
-          <UserPlus size={17} />
-          Nuevo Socio
-        </button>
-      </div>
 
-      {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-[#e0e0e0] shadow-sm mb-6 flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+        {/* Rango de Fechas de Alta */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#e0e0e0] text-xs text-gray-500">
+          <span className="font-bold flex items-center gap-1">
+            <Calendar size={13} /> Alta desde:
+          </span>
           <input
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-            placeholder="Buscar por nombre, apellido, email o teléfono..."
-            className="w-full pl-10 pr-4 py-2.5 bg-[#f8f9fa] border border-[#e0e0e0] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
+            type="date"
+            value={filtroDesde}
+            onChange={e => setFiltroDesde(e.target.value)}
+            className="border border-[#e0e0e0] rounded-xl px-2.5 py-1 text-xs bg-white font-medium"
           />
+          <span className="font-bold">Hasta:</span>
+          <input
+            type="date"
+            value={filtroHasta}
+            onChange={e => setFiltroHasta(e.target.value)}
+            className="border border-[#e0e0e0] rounded-xl px-2.5 py-1 text-xs bg-white font-medium"
+          />
+          {(filtroDesde || filtroHasta) && (
+            <button
+              onClick={() => { setFiltroDesde(''); setFiltroHasta('') }}
+              className="text-xs text-red-500 font-bold hover:underline"
+            >
+              Limpiar fechas
+            </button>
+          )}
         </div>
-
-        <div className="relative">
-          <select
-            value={filtroSub}
-            onChange={e => setFiltroSub(e.target.value)}
-            className="appearance-none bg-[#f8f9fa] border border-[#e0e0e0] rounded-xl pl-4 pr-9 py-2.5 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#e41d28] transition-all"
-          >
-            {listaOpcionesPlanes.map(t => <option key={t} value={t}>{t === 'Todos' ? 'Todos los planes' : `Plan ${t}`}</option>)}
-          </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
-
-        <div className="relative">
-          <select
-            value={filtroEstado}
-            onChange={e => setFiltroEstado(e.target.value)}
-            className="appearance-none bg-[#f8f9fa] border border-[#e0e0e0] rounded-xl pl-4 pr-9 py-2.5 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#e41d28] transition-all"
-          >
-            <option value="Todos">Todos los estados</option>
-            <option value="Al día">Al Día (Verde)</option>
-            <option value="En Fecha de Cobro">En Fecha de Cobro (Amarillo)</option>
-            <option value="Cuota Vencida">Cuota Vencida (Rojo)</option>
-          </select>
-          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
-
-        {(busqueda || filtroSub !== 'Todos' || filtroEstado !== 'Todos') && (
-          <button
-            onClick={() => { setBusqueda(''); setFiltroSub('Todos'); setFiltroEstado('Todos'); }}
-            className="text-xs text-[#e41d28] font-bold px-3 py-2 hover:underline cursor-pointer"
-          >
-            Limpiar filtros
-          </button>
-        )}
       </div>
 
-      {/* Table Component */}
-      <div className="bg-white rounded-2xl border border-[#e0e0e0] shadow-sm overflow-hidden">
+      {/* Tabla de Socios con Checkboxes */}
+      <div className="bg-white rounded-3xl border border-[#e0e0e0] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-[#f8f9fa] border-b border-[#e0e0e0]">
-                <th className="text-left text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Socio</th>
-                <th className="text-left text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Teléfono</th>
-                <th className="text-left text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Email</th>
-                <th className="text-left text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Suscripción</th>
-                <th className="text-left text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Vencimiento</th>
-                <th className="text-left text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Estado de Pago</th>
-                <th className="text-right text-xs font-black text-gray-500 uppercase tracking-wider px-6 py-4">Acción</th>
+              <tr className="bg-[#f8f9fa] border-b border-[#e0e0e0] text-gray-500 font-bold uppercase tracking-wider">
+                <th className="p-4 w-10">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectAll(filtered)}
+                    className="p-1 text-gray-500 hover:text-black"
+                  >
+                    {sociosSeleccionados.length === filtered.length && filtered.length > 0 ? (
+                      <CheckSquare size={16} className="text-[#e41d28]" />
+                    ) : (
+                      <Square size={16} />
+                    )}
+                  </button>
+                </th>
+                <th className="p-4">Socio / DNI</th>
+                <th className="p-4">Contacto (Tel / Email)</th>
+                <th className="p-4">Suscripción</th>
+                <th className="p-4">Vencimiento</th>
+                <th className="p-4">Estado</th>
+                <th className="p-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e0e0e0]">
-              {filtered.map((s) => {
-                return (
-                  <tr key={s.id} className="hover:bg-[#f8f9fa] transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#121212] text-white flex items-center justify-center font-black text-xs shadow-sm">
-                          {s.nombre[0]}{s.apellido[0]}
+            <tbody className="divide-y divide-[#e0e0e0]/70">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-gray-400">
+                    No se encontraron socios con los filtros aplicados.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map(s => {
+                  const estado = getEstadoPago(s.fechaVencimiento || s.fechaVto)
+                  const isSelected = sociosSeleccionados.includes(s.id)
+
+                  return (
+                    <tr
+                      key={s.id}
+                      className={`hover:bg-[#f8f9fa] transition-colors ${isSelected ? 'bg-[#fde8e9]/20' : ''}`}
+                    >
+                      {/* Checkbox */}
+                      <td className="p-4">
+                        <button
+                          type="button"
+                          onClick={() => toggleSelectSocio(s.id)}
+                          className="p-1 text-gray-500"
+                        >
+                          {isSelected ? (
+                            <CheckSquare size={16} className="text-[#e41d28]" />
+                          ) : (
+                            <Square size={16} />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* Socio */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-[#121212] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {s.nombre[0]}{s.apellido[0]}
+                          </div>
+                          <div>
+                            <p className="font-black text-[#1a1a1a] text-xs">{s.nombre} {s.apellido}</p>
+                            <p className="text-[10px] text-gray-400">DNI: {s.dni || 'S/D'} · {s.genero || 'N/E'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-[#1a1a1a]">{s.nombre} {s.apellido}</p>
-                          <p className="text-[11px] text-gray-400">ID #{s.id}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap font-medium">{s.telefono}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{s.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-xs font-bold text-[#1a1a1a] bg-[#f1f3f5] border border-[#e0e0e0] px-3 py-1 rounded-lg">
-                        {s.suscripcion}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap font-medium">
-                      {formatearFecha(s.fechaVto)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StateBadge socio={s} onOpenCobro={setSocioACobrar} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button
-                        onClick={() => setSocioACobrar(s)}
-                        className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border border-[#e0e0e0] text-gray-700 hover:bg-[#121212] hover:text-white hover:border-[#121212] transition-all cursor-pointer shadow-sm active:scale-95"
-                      >
-                        <CreditCard size={13} />
-                        Cobrar
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+                      </td>
+
+                      {/* Contacto */}
+                      <td className="p-4">
+                        <p className="font-bold text-[#1a1a1a]">{s.telefono}</p>
+                        <p className="text-[10px] text-gray-400 truncate max-w-[140px]">{s.email}</p>
+                      </td>
+
+                      {/* Suscripción */}
+                      <td className="p-4">
+                        <span className="px-2.5 py-0.5 rounded-full bg-[#f1f3f5] font-bold text-gray-700">
+                          {s.tipoSuscripcion || s.suscripcion}
+                        </span>
+                      </td>
+
+                      {/* Vencimiento */}
+                      <td className="p-4 font-bold text-gray-700">
+                        {formatearFecha(s.fechaVencimiento || s.fechaVto)}
+                      </td>
+
+                      {/* Chip de Estado */}
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${estado.badgeClass}`}>
+                          {estado.label}
+                        </span>
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="p-4 text-right space-x-2">
+                        <button
+                          onClick={() => setSocioACobrar(s)}
+                          className="px-3 py-1.5 rounded-xl bg-[#e41d28] text-white font-bold text-[11px] hover:bg-[#c71620] shadow-sm cursor-pointer"
+                        >
+                          Cobrar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`¿Eliminar socio ${s.nombre} ${s.apellido}?`)) {
+                              deleteSocio(s.id)
+                            }
+                          }}
+                          className="p-1.5 rounded-lg border border-[#e0e0e0] text-gray-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                          title="Eliminar"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
-
-        {filtered.length === 0 && (
-          <div className="text-center py-16 px-4">
-            <div className="w-12 h-12 rounded-full bg-[#fde8e9] text-[#e41d28] flex items-center justify-center mx-auto mb-3">
-              <Search size={22} />
-            </div>
-            <p className="text-base font-bold text-[#1a1a1a]">No se encontraron socios</p>
-            <p className="text-xs text-gray-400 mt-1">Prueba cambiando los criterios de búsqueda o filtros seleccionados.</p>
-          </div>
-        )}
       </div>
     </div>
   )

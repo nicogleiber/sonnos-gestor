@@ -1,80 +1,194 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { tarifasApi } from '../api/tarifasApi'
+
+export const initialPlanes = [
+  { id: 1, nombre: 'Pase Libre Mensual', meses: 1, precio: 18000, activo: true, descripcion: 'Acceso ilimitado a sala de musculación y cardio.' },
+  { id: 2, nombre: 'Plan Trimestral Fit', meses: 3, precio: 48000, activo: true, descripcion: 'Ahorro del 15% pagando el trimestre por adelantado.' },
+  { id: 3, nombre: 'Plan Semestral Pro', meses: 6, precio: 88000, activo: true, descripcion: 'Acceso semestral con evaluación física mensual incluida.' },
+  { id: 4, nombre: 'Plan Anual Elite', meses: 12, precio: 155000, activo: true, descripcion: 'La mejor tarifa anual con acceso total a todas las áreas.' },
+]
+
+export const initialDisciplinas = [
+  { id: 1, nombre: 'Spinning & Cardio', precio: 16000, frecuencia: '3 veces por semana', cupos: 20, activo: true },
+  { id: 2, nombre: 'Cross Training & Funcional', precio: 17500, frecuencia: 'Pase Libre', cupos: 20, activo: true },
+  { id: 3, nombre: 'Yoga & Pilates', precio: 15000, frecuencia: '2 veces por semana', cupos: 15, activo: true },
+  { id: 4, nombre: 'Boxeo Training', precio: 16500, frecuencia: '3 veces por semana', cupos: 18, activo: true },
+]
 
 const TarifasContext = createContext()
-
-// Planes de Musculación Iniciales
-const initialPlanes = [
-  { id: 1, nombre: 'Mensual', meses: 1, precio: 15000, estado: 'Activo', descripcion: 'Acceso total e irrestricto a sala de musculación y cardio.' },
-  { id: 2, nombre: 'Trimestral', meses: 3, precio: 40000, estado: 'Activo', descripcion: 'Abono trimestral con 11% de bonificación mensual.' },
-  { id: 3, nombre: 'Semestral', meses: 6, precio: 75000, estado: 'Activo', descripcion: 'Abono semestral con 17% de ahorro sobre el pase mensual.' },
-  { id: 4, nombre: 'Anual', meses: 12, precio: 140000, estado: 'Activo', descripcion: 'Pase Anual Black libre con máximo descuento y matrícula bonificada.' },
-]
-
-// Clases y Disciplinas Iniciales
-const initialDisciplinas = [
-  { id: 1, nombre: 'Spinning & Cardio', precio: 18000, frecuencia: 'Mensual (Pase Libre)', capacidad: 20, estado: 'Activo' },
-  { id: 2, nombre: 'CrossFit & Funcional', precio: 22000, frecuencia: 'Mensual (3x semana)', capacidad: 20, estado: 'Activo' },
-  { id: 3, nombre: 'Yoga & Pilates', precio: 16000, frecuencia: 'Mensual (2x semana)', capacidad: 15, estado: 'Activo' },
-  { id: 4, nombre: 'Zumba & Aeróbica', precio: 14000, frecuencia: 'Mensual (Pase Libre)', capacidad: 25, estado: 'Activo' },
-  { id: 5, nombre: 'Boxeo Funcional', precio: 19000, frecuencia: 'Mensual (3x semana)', capacidad: 18, estado: 'Activo' },
-  { id: 6, nombre: 'Pase Diario / Clase Suelta', precio: 3500, frecuencia: 'Por Clase / Suelto', capacidad: 30, estado: 'Activo' },
-]
 
 export function TarifasProvider({ children }) {
   const [planes, setPlanes] = useState(initialPlanes)
   const [disciplinas, setDisciplinas] = useState(initialDisciplinas)
+  const [loading, setLoading] = useState(false)
 
-  // ================= CRUD PLANES =================
-  const addPlan = (nuevoPlan) => {
-    setPlanes(prev => [{ id: Date.now(), ...nuevoPlan }, ...prev])
-  }
+  const fetchTarifas = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await tarifasApi.getAll()
+      if (data && data.length > 0) {
+        const planesDB = data.filter(t => t.tipo === 'Plan Musculación').map(p => ({
+          id: p._id || p.id,
+          nombre: p.nombre,
+          meses: p.duracionMeses || 1,
+          precio: p.precio,
+          activo: p.activo,
+          promocionReferidos: p.promocionReferidos,
+          descripcion: p.descripcion
+        }))
+        const disciplinasDB = data.filter(t => t.tipo === 'Clase/Disciplina').map(d => ({
+          id: d._id || d.id,
+          nombre: d.nombre,
+          precio: d.precio,
+          frecuencia: d.frecuencia || '3 veces por semana',
+          cupos: d.cupos || 20,
+          activo: d.activo
+        }))
 
-  const updatePlan = (id, planActualizado) => {
-    setPlanes(prev => prev.map(p => p.id === id ? { ...p, ...planActualizado } : p))
-  }
+        if (planesDB.length > 0) setPlanes(planesDB)
+        if (disciplinasDB.length > 0) setDisciplinas(disciplinasDB)
+      }
+    } catch (err) {
+      console.warn('Usando tarifas locales:', err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const deletePlan = (id) => {
-    setPlanes(prev => prev.filter(p => p.id !== id))
-  }
+  useEffect(() => {
+    fetchTarifas()
+  }, [fetchTarifas])
 
-  // ================= CRUD DISCIPLINAS =================
-  const addDisciplina = (nuevaDisciplina) => {
-    setDisciplinas(prev => [{ id: Date.now(), ...nuevaDisciplina }, ...prev])
-  }
-
-  const updateDisciplina = (id, disciplinaActualizada) => {
-    setDisciplinas(prev => prev.map(d => d.id === id ? { ...d, ...disciplinaActualizada } : d))
-  }
-
-  const deleteDisciplina = (id) => {
-    setDisciplinas(prev => prev.filter(d => d.id !== id))
-  }
-
-  // ================= HELPERS DINÁMICOS =================
-  const getPlanByName = (nombre) => {
-    return planes.find(p => p.nombre.toLowerCase() === (nombre || '').toLowerCase()) || {
-      nombre: nombre || 'Mensual',
-      meses: 1,
-      precio: 15000,
-      estado: 'Activo'
+  // CRUD Planes Musculación
+  const addPlan = async (nuevoPlan) => {
+    try {
+      const creado = await tarifasApi.create({
+        nombre: nuevoPlan.nombre,
+        tipo: 'Plan Musculación',
+        duracionMeses: Number(nuevoPlan.meses) || 1,
+        precio: Number(nuevoPlan.precio),
+        activo: nuevoPlan.activo !== undefined ? nuevoPlan.activo : true,
+        promocionReferidos: nuevoPlan.promocionReferidos || '',
+        descripcion: nuevoPlan.descripcion || ''
+      })
+      const planNorm = {
+        id: creado._id || creado.id,
+        nombre: creado.nombre,
+        meses: creado.duracionMeses,
+        precio: creado.precio,
+        activo: creado.activo,
+        promocionReferidos: creado.promocionReferidos,
+        descripcion: creado.descripcion
+      }
+      setPlanes(prev => [...prev, planNorm])
+      return planNorm
+    } catch (err) {
+      const id = Date.now()
+      const planNorm = { id, activo: true, ...nuevoPlan, meses: Number(nuevoPlan.meses) || 1, precio: Number(nuevoPlan.precio) }
+      setPlanes(prev => [...prev, planNorm])
+      return planNorm
     }
   }
 
-  const calcularVencimientoPorPlan = (fechaBase = new Date(), nombrePlan = 'Mensual') => {
-    const plan = getPlanByName(nombrePlan)
-    const meses = Number(plan.meses) || 1
-    const base = new Date(fechaBase)
-    const target = new Date(base)
-    target.setMonth(target.getMonth() + meses)
-
-    const yyyy = target.getFullYear()
-    const mm = String(target.getMonth() + 1).padStart(2, '0')
-    const dd = String(target.getDate()).padStart(2, '0')
-    return `${yyyy}-${mm}-${dd}`
+  const updatePlan = async (id, datosActualizados) => {
+    try {
+      await tarifasApi.update(id, {
+        nombre: datosActualizados.nombre,
+        duracionMeses: Number(datosActualizados.meses),
+        precio: Number(datosActualizados.precio),
+        activo: datosActualizados.activo,
+        promocionReferidos: datosActualizados.promocionReferidos,
+        descripcion: datosActualizados.descripcion
+      })
+    } catch (err) {
+      console.warn('Update local:', err.message)
+    }
+    setPlanes(prev => prev.map(p => p.id === id ? {
+      ...p,
+      ...datosActualizados,
+      meses: Number(datosActualizados.meses) || p.meses,
+      precio: Number(datosActualizados.precio) || p.precio
+    } : p))
   }
 
-  const planesActivos = planes.filter(p => p.estado === 'Activo')
-  const disciplinasActivas = disciplinas.filter(d => d.estado === 'Activo')
+  const deletePlan = async (id) => {
+    try {
+      await tarifasApi.delete(id)
+    } catch (err) {
+      console.warn('Delete local:', err.message)
+    }
+    setPlanes(prev => prev.filter(p => p.id !== id))
+  }
+
+  // CRUD Disciplinas
+  const addDisciplina = async (nuevaDisc) => {
+    try {
+      const creado = await tarifasApi.create({
+        nombre: nuevaDisc.nombre,
+        tipo: 'Clase/Disciplina',
+        precio: Number(nuevaDisc.precio),
+        frecuencia: nuevaDisc.frecuencia,
+        cupos: Number(nuevaDisc.cupos) || 20,
+        activo: nuevaDisc.activo !== undefined ? nuevaDisc.activo : true
+      })
+      const discNorm = {
+        id: creado._id || creado.id,
+        nombre: creado.nombre,
+        precio: creado.precio,
+        frecuencia: creado.frecuencia,
+        cupos: creado.cupos,
+        activo: creado.activo
+      }
+      setDisciplinas(prev => [...prev, discNorm])
+      return discNorm
+    } catch (err) {
+      const id = Date.now()
+      const discNorm = { id, activo: true, ...nuevaDisc, precio: Number(nuevaDisc.precio), cupos: Number(nuevaDisc.cupos) || 20 }
+      setDisciplinas(prev => [...prev, discNorm])
+      return discNorm
+    }
+  }
+
+  const updateDisciplina = async (id, datosActualizados) => {
+    try {
+      await tarifasApi.update(id, datosActualizados)
+    } catch (err) {
+      console.warn('Update local:', err.message)
+    }
+    setDisciplinas(prev => prev.map(d => d.id === id ? {
+      ...d,
+      ...datosActualizados,
+      precio: Number(datosActualizados.precio) || d.precio,
+      cupos: Number(datosActualizados.cupos) || d.cupos
+    } : d))
+  }
+
+  const deleteDisciplina = async (id) => {
+    try {
+      await tarifasApi.delete(id)
+    } catch (err) {
+      console.warn('Delete local:', err.message)
+    }
+    setDisciplinas(prev => prev.filter(d => d.id !== id))
+  }
+
+  // Helper para buscar plan por nombre
+  const getPlanByName = (nombrePlan) => {
+    if (!nombrePlan) return null
+    return planes.find(p => p.nombre.toLowerCase().trim() === nombrePlan.toLowerCase().trim()) || null
+  }
+
+  // Helper para calcular vencimiento dinámico según meses del plan
+  const calcularVencimientoPorPlan = (fechaDesde, nombrePlan) => {
+    const plan = getPlanByName(nombrePlan)
+    const meses = plan ? Number(plan.meses) : 1
+    const base = new Date(fechaDesde || new Date())
+    base.setMonth(base.getMonth() + meses)
+    return base.toISOString().split('T')[0]
+  }
+
+  const planesActivos = planes.filter(p => p.activo)
+  const disciplinasActivas = disciplinas.filter(d => d.activo)
 
   return (
     <TarifasContext.Provider
@@ -91,6 +205,7 @@ export function TarifasProvider({ children }) {
         deleteDisciplina,
         getPlanByName,
         calcularVencimientoPorPlan,
+        loading
       }}
     >
       {children}

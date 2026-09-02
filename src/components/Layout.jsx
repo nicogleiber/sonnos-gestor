@@ -1,14 +1,35 @@
 import { useState } from 'react'
-import { Menu, Flame, ShieldCheck, User } from 'lucide-react'
+import { Menu, Flame, ShieldCheck, User, ScanLine } from 'lucide-react'
 import Sidebar from './Sidebar'
+import CheckinModal from './CheckinModal'
 import { useAuth } from '../context/AuthContext'
+import { useSocios } from '../context/SociosContext'
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [checkinOpen, setCheckinOpen] = useState(false)
   const { user } = useAuth()
+  const { registrarPago } = useSocios()
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col lg:flex-row bg-[#f8f9fa] text-[#1a1a1a]">
+      {/* Global Checkin Modal */}
+      <CheckinModal
+        isOpen={checkinOpen}
+        onClose={() => setCheckinOpen(false)}
+        onOpenCobro={(socio) => {
+          // Si el usuario confirma cobro desde checkin
+          const precio = 18000
+          const nuevaFechaVto = new Date()
+          nuevaFechaVto.setMonth(nuevaFechaVto.getMonth() + 1)
+          registrarPago(socio.id, {
+            monto: precio,
+            metodoPago: 'Mercado Pago',
+            nuevaFechaVto: nuevaFechaVto.toISOString().split('T')[0]
+          })
+        }}
+      />
+
       {/* Mobile Top Header (< 1024px) */}
       <header className="lg:hidden h-14 bg-[#121212] border-b border-[#242424] px-4 flex items-center justify-between shrink-0 z-30 shadow-md">
         <div className="flex items-center gap-2.5">
@@ -26,11 +47,20 @@ export default function Layout({ children }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCheckinOpen(true)}
+            className="p-2 rounded-xl bg-[#e41d28] text-white shadow-sm cursor-pointer"
+            title="Fichaje de Ingreso"
+          >
+            <ScanLine size={17} />
+          </button>
+
           {user && (
             <div className="w-8 h-8 rounded-xl bg-[#1a1a1a] border border-[#333] text-[#e41d28] flex items-center justify-center font-black text-xs">
               {user.avatar || 'AD'}
             </div>
           )}
+
           <button
             onClick={() => setMobileMenuOpen(true)}
             className="p-2 rounded-xl text-gray-300 hover:text-white hover:bg-[#242424] transition-colors cursor-pointer"
@@ -59,6 +89,7 @@ export default function Layout({ children }) {
         <Sidebar
           onClose={() => setMobileMenuOpen(false)}
           onNavigate={() => setMobileMenuOpen(false)}
+          onOpenCheckin={() => setCheckinOpen(true)}
         />
       </div>
 

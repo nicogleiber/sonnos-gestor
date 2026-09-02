@@ -17,10 +17,14 @@ import {
   CalendarDays,
   UserPlus,
   Trash2,
+  Settings,
+  UserCheck
 } from 'lucide-react'
 import { diasSemana, salones } from '../data/mockData'
 import { useCalendario } from '../context/CalendarioContext'
 import { usePersonal } from '../context/PersonalContext'
+import { useSocios } from '../context/SociosContext'
+import ConfiguracionModal from '../components/ConfiguracionModal'
 
 const HORAS = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '17:00', '18:00', '19:00', '20:00', '21:00']
 
@@ -118,7 +122,7 @@ function SubModalRapidoProfesor({ onClose, onProfesorCreado }) {
               name="telefono"
               value={form.telefono}
               onChange={handleChange}
-              placeholder="011-4500-XXXX"
+              placeholder="114500XXXX"
               className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white text-[#1a1a1a]"
             />
           </div>
@@ -147,9 +151,11 @@ function SubModalRapidoProfesor({ onClose, onProfesorCreado }) {
 // ============================================
 // MODAL: CREAR / EDITAR EVENTO DE CLASE
 // ============================================
-function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
+function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete, onInscribir }) {
   const { profesores, addProfesor } = usePersonal()
+  const { socios } = useSocios()
   const [showSubModalProf, setShowSubModalProf] = useState(false)
+  const [socioAInscribirId, setSocioAInscribirId] = useState('')
 
   const [form, setForm] = useState({
     clase: evento?.clase || '',
@@ -160,7 +166,7 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
     duracion: evento?.duracion || 60,
     cupos: evento?.cupos || 20,
     inscriptos: evento?.inscriptos || 0,
-    tipoEvento: evento?.tipoEvento || 'Semanal',
+    tipoEvento: evento?.tipoEvento || 'Semanal Recurrente',
     fechaEspecifica: evento?.fechaEspecifica || prefill?.fechaEspecifica || '',
   })
 
@@ -184,6 +190,17 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
     onClose()
   }
 
+  const handleInscribirSocio = () => {
+    if (!socioAInscribirId) return
+    const socio = socios.find(s => s.id === socioAInscribirId)
+    if (socio && onInscribir) {
+      onInscribir(evento.id, socio)
+      setSocioAInscribirId('')
+    }
+  }
+
+  const cupoAlcanzado = form.inscriptos >= form.cupos
+
   return (
     <>
       {showSubModalProf && (
@@ -194,9 +211,9 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
       )}
 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-[#e0e0e0]">
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-[#e0e0e0] max-h-[90vh] flex flex-col">
           {/* Header */}
-          <div className="bg-[#121212] border-b border-[#242424] px-6 py-5 flex items-center justify-between">
+          <div className="bg-[#121212] border-b border-[#242424] px-6 py-5 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-[#e41d28] flex items-center justify-center text-white font-bold">
                 <CalendarDays size={18} />
@@ -219,7 +236,7 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
             {/* Tipo de Evento (Recurrencia) */}
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
@@ -228,15 +245,15 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  onClick={() => setForm(prev => ({ ...prev, tipoEvento: 'Semanal' }))}
+                  onClick={() => setForm(prev => ({ ...prev, tipoEvento: 'Semanal Recurrente' }))}
                   className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                    form.tipoEvento === 'Semanal'
+                    form.tipoEvento === 'Semanal Recurrente'
                       ? 'bg-[#121212] text-white border-[#121212] shadow-md ring-2 ring-[#e41d28]'
                       : 'border-[#e0e0e0] bg-[#f8f9fa] text-gray-600 hover:bg-[#f1f3f5]'
                   }`}
                 >
-                  <Repeat size={14} className={form.tipoEvento === 'Semanal' ? 'text-[#e41d28]' : ''} />
-                  Semanal (Recurrente)
+                  <Repeat size={14} className={form.tipoEvento === 'Semanal Recurrente' ? 'text-[#e41d28]' : ''} />
+                  Semanal Recurrente
                 </button>
                 <button
                   type="button"
@@ -364,7 +381,7 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
               </div>
             </div>
 
-            {/* Cupos e Inscriptos */}
+            {/* Cupos y Control de Capacidad */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
@@ -396,6 +413,43 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
                 />
               </div>
             </div>
+
+            {/* Sección Inscribir Socio si estamos editando */}
+            {evento && (
+              <div className="p-3.5 bg-[#f8f9fa] border border-[#e0e0e0] rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-700 uppercase">Inscribir Socio a esta Clase</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    cupoAlcanzado ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {cupoAlcanzado ? 'Cupo Completo' : `${form.cupos - form.inscriptos} libres`}
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <select
+                    value={socioAInscribirId}
+                    onChange={e => setSocioAInscribirId(e.target.value)}
+                    disabled={cupoAlcanzado}
+                    className="flex-1 border border-[#e0e0e0] bg-white rounded-xl px-3 py-1.5 text-xs font-medium text-[#1a1a1a] disabled:opacity-50"
+                  >
+                    <option value="">Seleccionar socio...</option>
+                    {socios.map(s => (
+                      <option key={s.id} value={s.id}>{s.nombre} {s.apellido}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={handleInscribirSocio}
+                    disabled={!socioAInscribirId || cupoAlcanzado}
+                    className="px-3.5 py-1.5 bg-[#121212] text-white rounded-xl text-xs font-bold hover:bg-[#242424] disabled:opacity-40 cursor-pointer"
+                  >
+                    + Inscribir
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center gap-3 pt-4 border-t border-[#e0e0e0]">
@@ -439,11 +493,12 @@ function ModalClaseEvento({ evento, prefill, onClose, onSave, onDelete }) {
 // PÁGINA PRINCIPAL: CALENDARIO
 // ============================================
 export default function Calendario() {
-  const { eventos, addEvento, updateEvento, deleteEvento } = useCalendario()
+  const { eventos, addEvento, updateEvento, deleteEvento, inscribirSocioAClase } = useCalendario()
   const [semanaOffset, setSemanaOffset] = useState(0)
 
-  const [modalClaseData, setModalClaseData] = useState(null) // null = cerrado, { ...evento } = editar
-  const [prefillCelda, setPrefillCelda] = useState(null) // { dia, horario, fechaEspecifica } = nuevo desde celda
+  const [modalClaseData, setModalClaseData] = useState(null)
+  const [prefillCelda, setPrefillCelda] = useState(null)
+  const [showConfigModal, setShowConfigModal] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
 
   const mostrarToast = msg => {
@@ -451,8 +506,8 @@ export default function Calendario() {
     setTimeout(() => setToastMessage(null), 3500)
   }
 
-  // Generate date labels for the week
-  const today = new Date(2026, 7, 24) // Lunes 24 agosto 2026
+  // Fechas de la semana
+  const today = new Date(2026, 8, 2) // Hoy
   const startOfWeek = new Date(today)
   startOfWeek.setDate(today.getDate() + semanaOffset * 7)
 
@@ -474,20 +529,18 @@ export default function Calendario() {
     )
   }
 
-  // Manejador de click en celda vacía
   const handleCeldaClick = (dia, hora, fechaStr) => {
     setPrefillCelda({ dia, horario: hora, fechaEspecifica: fechaStr })
     setModalClaseData(null)
   }
 
-  // Guardar creación / edición
   const handleSaveEvento = datos => {
     if (modalClaseData?.id) {
       updateEvento(modalClaseData.id, datos)
-      mostrarToast(`✏️ Clase "${datos.clase}" actualizada correctamente.`)
+      mostrarToast(`✏️ Clase "${datos.clase}" actualizada.`)
     } else {
       addEvento(datos)
-      mostrarToast(`✅ Clase "${datos.clase}" agendada en el cronograma.`)
+      mostrarToast(`✅ Clase "${datos.clase}" agendada.`)
     }
   }
 
@@ -496,9 +549,18 @@ export default function Calendario() {
     mostrarToast(`🗑️ Clase cancelada del cronograma.`)
   }
 
+  const handleInscribirSocio = async (claseId, socio) => {
+    try {
+      await inscribirSocioAClase(claseId, socio)
+      mostrarToast(`🎉 Socio ${socio.nombre} ${socio.apellido} inscrito con éxito.`)
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
   return (
-    <div className="p-8 relative">
-      {/* Toast Notification */}
+    <div className="p-4 sm:p-6 lg:p-8 relative space-y-6">
+      {/* Toast */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#121212] text-white border border-[#242424] px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom duration-300">
           <Sparkles size={18} className="text-[#e41d28]" />
@@ -506,7 +568,7 @@ export default function Calendario() {
         </div>
       )}
 
-      {/* Modal de Clase (Creación / Edición) */}
+      {/* Modales */}
       {(modalClaseData !== null || prefillCelda !== null) && (
         <ModalClaseEvento
           evento={modalClaseData}
@@ -517,11 +579,18 @@ export default function Calendario() {
           }}
           onSave={handleSaveEvento}
           onDelete={handleDeleteEvento}
+          onInscribir={handleInscribirSocio}
         />
       )}
 
+      <ConfiguracionModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        onGuardado={() => mostrarToast('⚙️ Horarios del gimnasio actualizados.')}
+      />
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-1.5 rounded-lg bg-[#fde8e9] text-[#e41d28]">
@@ -535,8 +604,16 @@ export default function Calendario() {
           </p>
         </div>
 
-        {/* Controls and New Event Button */}
+        {/* Controls */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowConfigModal(true)}
+            className="p-2.5 rounded-2xl border border-[#e0e0e0] bg-white text-gray-700 hover:bg-[#f1f3f5] shadow-sm cursor-pointer"
+            title="Configurar Horarios del Gimnasio"
+          >
+            <Settings size={16} />
+          </button>
+
           <button
             onClick={() => setPrefillCelda({ dia: 'Lunes', horario: '08:00', fechaEspecifica: weekDates[0].fechaStr })}
             className="flex items-center gap-1.5 bg-[#e41d28] text-white px-4 py-2.5 rounded-2xl text-xs font-black hover:bg-[#c71620] transition-all shadow-lg shadow-red-600/30 uppercase tracking-wider active:scale-95 cursor-pointer"
@@ -545,7 +622,7 @@ export default function Calendario() {
             Nueva Clase
           </button>
 
-          {/* Week controls */}
+          {/* Week controls con BOTÓN HOY destacado */}
           <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-[#e0e0e0] shadow-sm">
             <button
               onClick={() => setSemanaOffset(o => o - 1)}
@@ -557,6 +634,7 @@ export default function Calendario() {
             <button
               onClick={() => setSemanaOffset(0)}
               className="px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-xl bg-[#121212] text-white hover:bg-[#242424] transition-colors shadow-sm cursor-pointer"
+              title="Volver a la fecha de hoy"
             >
               Hoy
             </button>
@@ -571,21 +649,10 @@ export default function Calendario() {
         </div>
       </div>
 
-      {/* Tip Banner */}
-      <div className="mb-4 bg-[#f8f9fa] border border-[#e0e0e0] p-3 rounded-2xl flex items-center justify-between text-xs text-gray-600">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#e41d28] animate-pulse" />
-          <span>💡 <strong>Tip interactivo:</strong> Hacé clic en cualquier celda vacía para agendar una clase rápidamente, o clic sobre una tarjeta para editarla.</span>
-        </div>
-        <span className="text-[11px] font-bold text-[#e41d28] bg-[#fde8e9] px-2.5 py-0.5 rounded-full">
-          {eventos.length} Clases Activas
-        </span>
-      </div>
-
-      {/* Calendar grid container con alineación fija e ininterrumpida */}
+      {/* Grid del Calendario */}
       <div className="bg-white rounded-3xl border border-[#e0e0e0] shadow-sm overflow-x-auto">
         <div className="min-w-[900px]">
-          {/* Day headers */}
+          {/* Header Días */}
           <div
             className="grid bg-[#f8f9fa] border-b border-[#e0e0e0]"
             style={{ gridTemplateColumns: '80px repeat(6, minmax(0, 1fr))' }}
@@ -612,27 +679,23 @@ export default function Calendario() {
             })}
           </div>
 
-          {/* Time slots grid - Altura fija de fila 96px para alineación perfecta */}
+          {/* Filas de Horas */}
           {HORAS.map(hora => (
             <div
               key={hora}
               className="grid border-b border-[#e0e0e0] last:border-0 h-[96px] max-h-[96px] min-h-[96px]"
               style={{ gridTemplateColumns: '80px repeat(6, minmax(0, 1fr))' }}
             >
-              {/* Columna de hora */}
               <div className="p-2 border-r border-[#e0e0e0] flex items-center justify-center bg-[#fafafa] select-none">
                 <span className="text-xs font-black text-gray-600 bg-[#f1f3f5] px-2 py-1 rounded-md">
                   {hora}
                 </span>
               </div>
 
-              {/* Celdas por día con altura fija y control de overflow */}
               {weekDates.map(({ dia, fechaStr }) => {
                 const eventosDeEstaCelda = eventos.filter(e => {
                   const matchDiaHora = e.dia === dia && e.horario === hora
                   if (!matchDiaHora) return false
-
-                  // Si es evento único, verificar fecha específica
                   if (e.tipoEvento === 'Evento Único' && e.fechaEspecifica) {
                     return e.fechaEspecifica === fechaStr
                   }
@@ -652,9 +715,7 @@ export default function Calendario() {
                         ? 'hover:bg-[#fde8e9]/25 cursor-pointer'
                         : 'bg-white'
                     }`}
-                    title={eventosDeEstaCelda.length === 0 ? `Clic para agendar clase el ${dia} a las ${hora}` : ''}
                   >
-                    {/* Botón flotante al pasar mouse sobre celda vacía */}
                     {eventosDeEstaCelda.length === 0 && (
                       <div className="hidden group-hover:flex absolute inset-0 items-center justify-center pointer-events-none z-10">
                         <span className="text-[10px] font-black text-[#e41d28] bg-white px-2 py-1 rounded-lg border border-[#e41d28]/30 shadow-md flex items-center gap-1">
@@ -663,12 +724,11 @@ export default function Calendario() {
                       </div>
                     )}
 
-                    {/* Tarjetas de Clases Agendadas */}
                     <div className="h-full flex flex-col justify-center">
                       {eventosDeEstaCelda.map(ev => {
                         const isUnico = ev.tipoEvento === 'Evento Único'
                         const salonCorto = ev.salon.replace('Sala de ', '').replace('Salón ', '')
-                        const tooltipCompleto = `${ev.clase}\n━━━━━━━━━━━━━━━━━━━━\n👤 Profesor: ${ev.profesor}\n📍 Espacio: ${ev.salon}\n⏰ Horario: ${ev.dia} a las ${ev.horario} hs (${ev.duracion} min)\n👥 Cupos: ${ev.inscriptos}/${ev.cupos} inscriptos\n🔄 Tipo: ${isUnico ? '⭐ Evento Único Especial' : '🔁 Semanal Recurrente'}`
+                        const tooltipCompleto = `${ev.clase}\nProfesor: ${ev.profesor}\nEspacio: ${ev.salon}\nCupo: ${ev.inscriptos}/${ev.cupos}`
 
                         return (
                           <div
@@ -683,7 +743,6 @@ export default function Calendario() {
                               ev.clase
                             )}`}
                           >
-                            {/* Título de la clase: Máximo 2 renglones con line-clamp-2 limpio */}
                             <div className="flex items-start justify-between gap-1 overflow-hidden min-h-0">
                               <p
                                 className="font-black text-[11px] leading-[1.25] text-left break-words overflow-hidden"
@@ -704,7 +763,6 @@ export default function Calendario() {
                               )}
                             </div>
 
-                            {/* Metadatos inferiores (Profesor y Cupos) truncados en 1 línea */}
                             <div className="pt-1 border-t border-current/15 mt-0.5 flex flex-col gap-0.5 shrink-0">
                               <div className="flex items-center justify-between text-[10px] font-medium leading-none opacity-90">
                                 <span className="truncate max-w-[70%]">👤 {ev.profesor}</span>
@@ -722,28 +780,6 @@ export default function Calendario() {
                   </div>
                 )
               })}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-6 bg-white p-5 rounded-3xl border border-[#e0e0e0] shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-black uppercase tracking-wider text-gray-500">
-            Referencias y Disciplinas en Cronograma
-          </p>
-          <span className="text-xs text-gray-400 font-medium">Frecuencia recurrente semanal y eventos especiales</span>
-        </div>
-        <div className="flex flex-wrap gap-2.5">
-          {Object.keys(CLASS_STYLES).map(nombre => (
-            <div
-              key={nombre}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border border-[#e0e0e0] ${getClassStyle(
-                nombre
-              )}`}
-            >
-              <span>{nombre}</span>
             </div>
           ))}
         </div>
