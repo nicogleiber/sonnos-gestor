@@ -1,74 +1,53 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
-// Definimos el esquema
-const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, 'El nombre es obligatorio'],
-        trim: true,
-        minlength: [2, 'El nombre debe tener al menos 2 caracteres'],
-        maxlength: [50, 'El nombre no puede superar los 50 caracteres']
-    },
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const SALT_ROUNDS = 12;
+
+const userSchema = new mongoose.Schema(
+  {
+    firstName: { type: String, required: true, trim: true, maxlength: 60 },
+    lastName: { type: String, required: true, trim: true, maxlength: 60 },
     email: {
-        type: String,
-        required: [true, 'El email es obligatorio'],
-        unique: true,
-        lowercase: true,
-        trim: true,
-        match: [/^\S+@\S+\.\S+$/, 'Email no válido']
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      validate: {
+        validator: (v) => EMAIL_REGEX.test(v),
+        message: (props) => `${props.value} no es un email válido`,
+      },
     },
     password: {
-        type: String,
-        required: [true, 'La contraseña es obligatoria'],
-        minlength: [6, 'La contraseña debe tener al menos 6 caracteres'],
-        select: false // No devuelve la contraseña en las consultas por defecto
+      type: String,
+      required: true,
+      minlength: 8,
+      select: false,
     },
-    age: {
-        type: Number,
-        min: [18, 'Debes ser mayor de edad'],
-        max: [120, 'Edad no válida']
-    },
-    role: {
-        type: String,
-        enum: ['user', 'admin'],
-        default: 'user'
-    },
-    isActive: {
-        type: Boolean,
-        default: true
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    }
-}, {
-    timestamps: true, // Añade createdAt y updatedAt automáticamente
-    versionKey: false // Elimina el campo __v
+    phone: { type: String, trim: true },
+    isPlatformAdmin: { type: Boolean, default: false },
+    active: { type: Boolean, default: true },
+    lastLoginAt: { type: Date },
+  },
+  { timestamps: true }
+);
+
+userSchema.pre('save', async function hashPassword() {
+  if (!this.isModified('password')) return;
+  this.password = await bcrypt.hash(this.password, SALT_ROUNDS);
 });
 
-// Métodos personalizados (opcional)
-userSchema.methods.toJSON = function () {
-    const user = this.toObject();
-    delete user.password; // Elimina la contraseña al enviar JSON
-    return user;
+userSchema.methods.comparePassword = function comparePassword(candidate) {
+  return bcrypt.compare(candidate, this.password);
 };
 
-// Middleware pre-save (para hashear contraseña, por ejemplo)
-userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
-
-    // Aquí podrías hashear la contraseña con bcrypt
-    // const salt = await bcrypt.genSalt(10);
-    // this.password = await bcrypt.hash(this.password, salt);
-    next();
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.__v;
+    return ret;
+  },
 });
 
-// Método estático (opcional)
-userSchema.statics.findByEmail = function (email) {
-    return this.findOne({ email });
-};
-
-// Crear el modelo a partir del esquema
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);
