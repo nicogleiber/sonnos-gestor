@@ -13,7 +13,7 @@ const register = catchAsync(async (req, res) => {
 
     res.status(201).json({
         success: true,
-        data: { token, user, gym: { id: gym._id, name: gym.name } },
+        data: { token, user, gym: { _id: gym._id, id: gym._id, name: gym.name } },
     });
 });
 
