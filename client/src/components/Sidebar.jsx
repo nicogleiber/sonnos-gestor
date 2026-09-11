@@ -16,19 +16,19 @@ import {
   Bell,
   ScanLine,
   Building2,
-  Shield,
-  UserCheck2,
-  FileCheck
+  Settings,
+  Shield
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
+export default function Sidebar({ onClose, onNavigate, onOpenCheckin, onOpenConfig }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
-  // Sede Multicuenta & Rol de Visualización
+  // Sede Multicuenta
   const [sedeActiva, setSedeActiva] = useState('Sede Central')
-  const [rolVisualizacion, setRolVisualizacion] = useState('Master/Dueño') // 'Master/Dueño' | 'Socio'
+
+  const isSocio = user?.role === 'Socio'
 
   const handleLogout = () => {
     logout()
@@ -36,18 +36,23 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
     navigate('/login', { replace: true })
   }
 
+  const handleOpenConfig = () => {
+    if (onOpenConfig) onOpenConfig()
+    if (onClose) onClose()
+  }
+
   const handleLinkClick = () => {
     if (onNavigate) onNavigate()
     if (onClose) onClose()
   }
 
-  // Ítems según rol
-  const navItems = rolVisualizacion === 'Master/Dueño' ? [
+  // Ítems según rol del usuario autenticado
+  const navItems = !isSocio ? [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/socios', icon: Users, label: 'Socios' },
-    { to: '/tarifas', icon: Tag, label: 'Tarifas' },
+    { to: '/planes', icon: Tag, label: 'Planes' },
     { to: '/tienda', icon: ShoppingBag, label: 'Tienda & Stock' },
-    { to: '/caja', icon: Wallet, label: 'Caja & Cierre' },
+    { to: '/caja', icon: Wallet, label: 'Caja' },
     { to: '/clases', icon: Dumbbell, label: 'Clases y Salones' },
     { to: '/calendario', icon: CalendarDays, label: 'Calendario' },
     { to: '/personal', icon: UserCheck, label: 'Personal' },
@@ -56,7 +61,7 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
     // Vista restringida para el rol Socio
     { to: '/calendario', icon: CalendarDays, label: 'Mi Cronograma' },
     { to: '/clases', icon: Dumbbell, label: 'Clases Disponibles' },
-    { to: '/tarifas', icon: Tag, label: 'Pagar Membresía' },
+    { to: '/planes', icon: Tag, label: 'Planes y Membresías' },
   ]
 
   return (
@@ -108,7 +113,7 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
         </div>
 
         {/* Botón Destacado: Fichaje Rápido / Check-in */}
-        {rolVisualizacion === 'Master/Dueño' && (
+        {!isSocio && (
           <div className="px-4 py-2">
             <button
               onClick={() => {
@@ -127,7 +132,7 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
         <nav className="px-3 py-3 space-y-1">
           <div className="px-3 pb-1 flex items-center justify-between">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-              {rolVisualizacion === 'Master/Dueño' ? 'Administración' : 'Portal del Socio'}
+              {!isSocio ? 'Administración' : 'Portal del Socio'}
             </p>
           </div>
 
@@ -162,34 +167,16 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
         </nav>
       </div>
 
-      {/* Footer con Switch de Rol y Logout */}
+      {/* Footer con Perfil, Configuración y Logout */}
       <div className="p-3 mx-2 mb-3 border-t border-[#242424] space-y-2">
-        {/* Switch de Rol */}
-        <div className="p-2 rounded-xl bg-[#1a1a1a] border border-[#292929] flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Shield size={13} className="text-gray-400" />
-            <span className="text-[10px] font-bold text-gray-400">Rol:</span>
-          </div>
-          <button
-            onClick={() => setRolVisualizacion(r => r === 'Master/Dueño' ? 'Socio' : 'Master/Dueño')}
-            className={`text-[10px] font-black px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-              rolVisualizacion === 'Master/Dueño'
-                ? 'bg-[#e41d28] text-white'
-                : 'bg-emerald-600 text-white'
-            }`}
-          >
-            {rolVisualizacion === 'Master/Dueño' ? '👑 Master' : '👤 Socio'}
-          </button>
-        </div>
-
         {/* Términos y Condiciones si está en modo Socio */}
-        {rolVisualizacion === 'Socio' && (
+        {isSocio && (
           <p className="text-[9px] text-gray-500 px-1 text-center">
             🔐 Datos protegidos conforme a los Términos y Condiciones de Sonnos Gestor.
           </p>
         )}
 
-        {/* Usuario y Botón Logout */}
+        {/* Usuario, Configuración y Botón Logout */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-xl bg-[#1a1a1a] border border-[#333] text-[#e41d28] flex items-center justify-center font-black text-xs shrink-0">
@@ -201,15 +188,30 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin }) {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#e41d28] transition-all cursor-pointer"
-            title="Cerrar Sesión"
-          >
-            <LogOut size={15} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* Botón Configuración del Gimnasio */}
+            <button
+              onClick={handleOpenConfig}
+              className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#242424] transition-all cursor-pointer"
+              title="Configuración del Gimnasio"
+              aria-label="Configuración del Gimnasio"
+            >
+              <Settings size={16} />
+            </button>
+
+            {/* Botón Logout */}
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-[#e41d28] transition-all cursor-pointer"
+              title="Cerrar Sesión"
+              aria-label="Cerrar Sesión"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
   )
 }
+

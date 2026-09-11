@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Menu, Flame, ShieldCheck, User, ScanLine } from 'lucide-react'
 import Sidebar from './Sidebar'
 import CheckinModal from './CheckinModal'
+import ConfiguracionModal from './ConfiguracionModal'
 import { useAuth } from '../context/AuthContext'
 import { useSocios } from '../context/SociosContext'
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [checkinOpen, setCheckinOpen] = useState(false)
+  const [configOpen, setConfigOpen] = useState(false)
   const { user } = useAuth()
   const { registrarPago } = useSocios()
 
@@ -28,6 +30,12 @@ export default function Layout({ children }) {
             nuevaFechaVto: nuevaFechaVto.toISOString().split('T')[0]
           })
         }}
+      />
+
+      {/* Global Gym Configuration Modal */}
+      <ConfiguracionModal
+        isOpen={configOpen}
+        onClose={() => setConfigOpen(false)}
       />
 
       {/* Mobile Top Header (< 1024px) */}
@@ -90,6 +98,7 @@ export default function Layout({ children }) {
           onClose={() => setMobileMenuOpen(false)}
           onNavigate={() => setMobileMenuOpen(false)}
           onOpenCheckin={() => setCheckinOpen(true)}
+          onOpenConfig={() => setConfigOpen(true)}
         />
       </div>
 
@@ -102,3 +111,4 @@ export default function Layout({ children }) {
     </div>
   )
 }
+

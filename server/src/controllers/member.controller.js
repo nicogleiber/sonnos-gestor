@@ -311,6 +311,40 @@ const generateWhatsAppTemplates = catchAsync(async (req, res) => {
   });
 });
 
+const registrarPago = catchAsync(async (req, res) => {
+  const { monto, metodoPago, nuevaFechaVto, planNombre } = req.body;
+  const member = await Member.findOne({ _id: req.params.id, gym: req.gymId });
+  if (!member) {
+    throw ApiError.notFound('Socio no encontrado');
+  }
+
+  // Si no se envía fecha explícita, extender desde la fecha actual de vencimiento
+  let fechaVtoFinal;
+  if (nuevaFechaVto) {
+    fechaVtoFinal = new Date(nuevaFechaVto);
+  } else {
+    const baseDate = member.fechaVencimiento ? new Date(member.fechaVencimiento) : new Date();
+    fechaVtoFinal = new Date(baseDate);
+    fechaVtoFinal.setMonth(fechaVtoFinal.getMonth() + 1);
+  }
+
+  member.fechaVencimiento = fechaVtoFinal;
+  member.fechaUltimoPago = new Date();
+  member.estado = 'Al Día';
+  if (planNombre) {
+    member.tipoSuscripcion = planNombre;
+  }
+
+  await member.save();
+
+  res.json({
+    success: true,
+    message: 'Pago registrado exitosamente',
+    socio: member,
+    data: member,
+  });
+});
+
 module.exports = {
   getMembers,
   getMemberById,
@@ -319,4 +353,6 @@ module.exports = {
   deleteMember,
   checkin,
   generateWhatsAppTemplates,
+  registrarPago,
 };
+

@@ -1,4 +1,4 @@
-export const API_URL = 'http://localhost:5000/api'
+export const API_URL = 'http://localhost:5050/api'
 
 export async function apiFetch(endpoint, options = {}) {
   const defaultHeaders = {
@@ -15,13 +15,18 @@ export async function apiFetch(endpoint, options = {}) {
 
   try {
     const response = await fetch(`${API_URL}${endpoint}`, config)
-    const data = await response.json()
+    const resData = await response.json()
     if (!response.ok) {
-      throw new Error(data.error || data.message || `Error ${response.status}`)
+      throw new Error(resData.error || resData.message || `Error ${response.status}`)
     }
-    return data
+    // Si la respuesta viene envuelta en { success: true, data: [...] }
+    if (resData && typeof resData === 'object' && 'data' in resData) {
+      return resData.data
+    }
+    return resData
   } catch (error) {
     console.warn(`[API WARN] Fallback en endpoint ${endpoint}:`, error.message)
     throw error
   }
 }
+

@@ -40,7 +40,8 @@ export default function App() {
                             <Routes>
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/socios" element={<Socios />} />
-                              <Route path="/tarifas" element={<Tarifas />} />
+                              <Route path="/planes" element={<Tarifas />} />
+                              <Route path="/tarifas" element={<Navigate to="/planes" replace />} />
                               <Route path="/tienda" element={<Tienda />} />
                               <Route path="/caja" element={<Caja />} />
                               <Route path="/clases" element={<Clases />} />
@@ -63,3 +64,4 @@ export default function App() {
     </AuthProvider>
   )
 }
+

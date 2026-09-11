@@ -494,11 +494,11 @@ export default function Tarifas() {
               <Tag size={18} />
             </span>
             <h2 className="text-2xl md:text-3xl font-black text-[#1a1a1a] tracking-tight">
-              Gestión de Tarifas y Precios
+              Gestión de Planes y Membresías
             </h2>
           </div>
           <p className="text-gray-500 text-sm">
-            Administración centralizada de aranceles de musculación y actividades grupales de Sonnos.
+            Administración centralizada de planes de musculación y actividades grupales de Sonnos.
           </p>
         </div>
 

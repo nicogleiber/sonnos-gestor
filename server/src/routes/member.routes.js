@@ -52,6 +52,11 @@ router.put(
   memberController.updateMember
 );
 
+router.post(
+  '/:id/pagar',
+  memberController.registrarPago
+);
+
 router.delete(
   '/:id',
   authorize(PERMISSIONS.MANAGE_MEMBERS),
@@ -59,3 +64,4 @@ router.delete(
 );
 
 module.exports = router;
+
