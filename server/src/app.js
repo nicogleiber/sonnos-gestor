@@ -44,6 +44,19 @@ gymRouter.use('/productos', require('./routes/product.routes'));
 gymRouter.use('/inventory-movements', require('./routes/inventoryMovement.routes'));
 gymRouter.use('/movimientos-inventario', require('./routes/inventoryMovement.routes'));
 
+// Fase 5: Caja, Ventas & Pagos (Cash Register, Sales & Payments)
+gymRouter.use('/cash-register', require('./routes/cashRegister.routes'));
+gymRouter.use('/caja', require('./routes/cashRegister.routes'));
+gymRouter.use('/cash-movements', require('./routes/cashMovement.routes'));
+gymRouter.use('/movimientos-caja', require('./routes/cashMovement.routes'));
+gymRouter.use('/sales', require('./routes/sale.routes'));
+gymRouter.use('/ventas', require('./routes/sale.routes'));
+gymRouter.use('/payments', require('./routes/payment.routes'));
+gymRouter.use('/pagos', require('./routes/payment.routes'));
+
+// Fase 6: Dashboard & Métricas (Analytics & Reporting)
+gymRouter.use('/dashboard', require('./routes/dashboard.routes'));
+
 // Temporal: ruta de prueba para confirmar autenticación y rol
 gymRouter.get('/whoami', (req, res) => {
   res.json({ success: true, gymId: req.gymId, role: req.role });
