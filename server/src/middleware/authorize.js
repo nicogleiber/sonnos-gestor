@@ -25,7 +25,8 @@ function authorize(...requiredPermissions) {
         const staff = await GymStaff.findOne({ user: req.user._id, gym: gymId, status: 'active' });
 
         if (!staff) {
-            throw ApiError.forbidden('No tenés acceso a este gimnasio');
+            // 404 y no 403: no revelamos que el gimnasio existe a usuarios ajenos (aislamiento multi-tenant).
+            throw ApiError.notFound('Gimnasio no encontrado');
         }
 
         if (requiredPermissions.length > 0) {
