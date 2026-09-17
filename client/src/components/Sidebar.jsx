@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -16,17 +15,15 @@ import {
   Bell,
   ScanLine,
   Building2,
-  Settings,
-  Shield
+  Settings
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useGym } from '../context/GymContext'
 
 export default function Sidebar({ onClose, onNavigate, onOpenCheckin, onOpenConfig }) {
   const { user, logout } = useAuth()
+  const { sedes, sedeActiva, setSedeActiva, perfil } = useGym()
   const navigate = useNavigate()
-
-  // Sede Multicuenta
-  const [sedeActiva, setSedeActiva] = useState('Sede Central')
 
   const isSocio = user?.role === 'Socio'
 
@@ -94,20 +91,28 @@ export default function Sidebar({ onClose, onNavigate, onOpenCheckin, onOpenConf
           )}
         </div>
 
-        {/* Selector de Sede Multicuenta */}
+        {/* Selector de Sede Dinámico o Nombre Estático */}
         <div className="px-4 pt-4 pb-2">
-          <div className="p-2 rounded-2xl bg-[#1a1a1a] border border-[#2b2b2b] flex items-center justify-between">
-            <div className="flex items-center gap-2 min-w-0">
+          <div className="p-2.5 rounded-2xl bg-[#1a1a1a] border border-[#2b2b2b] flex items-center justify-between min-h-[38px]">
+            <div className="flex items-center gap-2 min-w-0 w-full">
               <Building2 size={15} className="text-[#e41d28] shrink-0" />
-              <select
-                value={sedeActiva}
-                onChange={e => setSedeActiva(e.target.value)}
-                className="bg-transparent text-white text-xs font-bold focus:outline-none truncate cursor-pointer"
-              >
-                <option value="Sede Central" className="bg-[#121212] text-white">Sede Central (Belgrano)</option>
-                <option value="Sede Norte" className="bg-[#121212] text-white">Sede Norte (Palermo)</option>
-                <option value="Sede Oeste" className="bg-[#121212] text-white">Sede Oeste (Ramos)</option>
-              </select>
+              {sedes.length > 1 ? (
+                <select
+                  value={sedeActiva || sedes[0]?._id}
+                  onChange={e => setSedeActiva(e.target.value)}
+                  className="bg-transparent text-white text-xs font-bold focus:outline-none truncate cursor-pointer w-full"
+                >
+                  {sedes.map(s => (
+                    <option key={s._id || s.id || s.nombre} value={s._id || s.id} className="bg-[#121212] text-white">
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-white text-xs font-bold truncate">
+                  {sedes[0]?.nombre || perfil?.name || 'Sede Central'}
+                </span>
+              )}
             </div>
           </div>
         </div>

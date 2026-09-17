@@ -10,13 +10,15 @@ export function CajaProvider({ children }) {
   const [movimientos, setMovimientos] = useState([])
   const [cierreReporte, setCierreReporte] = useState(null)
   const [loading, setLoading] = useState(false)
+  // Estado de apertura de caja
+  const [estadoCaja, setEstadoCaja] = useState(null) // null | { abierta, montoInicial, fechaApertura }
 
   // Cargar productos
   const fetchProductos = useCallback(async (params = {}) => {
     setLoading(true)
     try {
       const data = await productosApi.getAll(params)
-      setProductos(data)
+      setProductos(Array.isArray(data) ? data : [])
     } catch (err) {
       console.warn('Error al cargar productos:', err.message)
     } finally {
@@ -28,9 +30,22 @@ export function CajaProvider({ children }) {
   const fetchMovimientos = useCallback(async (fecha) => {
     try {
       const data = await cajaApi.getMovimientos({ fecha })
-      setMovimientos(data)
+      setMovimientos(Array.isArray(data) ? data : [])
     } catch (err) {
       console.warn('Error al cargar movimientos de caja:', err.message)
+    }
+  }, [])
+
+  // Consultar estado de caja (abierta/cerrada)
+  const fetchEstadoCaja = useCallback(async (fecha) => {
+    try {
+      const data = await cajaApi.getEstadoCaja(fecha)
+      setEstadoCaja(data)
+      return data
+    } catch (err) {
+      // Si el endpoint no existe, asumimos caja abierta (modo fallback)
+      setEstadoCaja({ abierta: true, montoInicial: 0, fallback: true })
+      return null
     }
   }, [])
 
@@ -43,6 +58,40 @@ export function CajaProvider({ children }) {
     } catch (err) {
       console.warn('Error al cargar reporte de cierre:', err.message)
       return null
+    }
+  }
+
+  // Abrir caja con monto inicial
+  const abrirCaja = async ({ montoInicial, fecha }) => {
+    try {
+      const data = await cajaApi.abrirCaja({ montoInicial, fecha })
+      setEstadoCaja({ abierta: true, montoInicial, fechaApertura: fecha })
+      return data
+    } catch (err) {
+      // Fallback local si el endpoint no existe
+      setEstadoCaja({ abierta: true, montoInicial, fechaApertura: fecha, fallback: true })
+      return { montoInicial }
+    }
+  }
+
+  // Cerrar caja con monto real auditado
+  const cerrarCaja = async ({ efectivoReal, justificacion, fecha }) => {
+    try {
+      const data = await cajaApi.cerrarCaja({ efectivoReal, justificacion, fecha })
+      setEstadoCaja(prev => ({ ...prev, abierta: false }))
+      return data
+    } catch (err) {
+      // En fallback, calculamos diferencia localmente
+      const totalEfectivo = movimientos
+        .filter(m => m.metodoPago === 'Efectivo')
+        .reduce((acc, m) => acc + m.monto, 0)
+      const saldoTeorico = (estadoCaja?.montoInicial || 0) + totalEfectivo
+      return {
+        saldoTeorico,
+        efectivoReal,
+        diferencia: efectivoReal - saldoTeorico,
+        justificacion
+      }
     }
   }
 
@@ -157,6 +206,10 @@ export function CajaProvider({ children }) {
         fetchMovimientos,
         cierreReporte,
         fetchCierreDia,
+        estadoCaja,
+        fetchEstadoCaja,
+        abrirCaja,
+        cerrarCaja,
         loading
       }}
     >

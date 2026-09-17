@@ -18,5 +18,21 @@ export const cajaApi = {
   getCierreDia: async (fecha) => {
     const qs = fecha ? `?fecha=${fecha}` : ''
     return await apiFetch(`/caja/cierre-dia${qs}`)
+  },
+  abrirCaja: async (data) => {
+    return await apiFetch('/caja/abrir', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
+  cerrarCaja: async (data) => {
+    return await apiFetch('/caja/cerrar', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  },
+  getEstadoCaja: async (fecha) => {
+    const qs = fecha ? `?fecha=${fecha}` : ''
+    return await apiFetch(`/caja/estado${qs}`)
   }
 }

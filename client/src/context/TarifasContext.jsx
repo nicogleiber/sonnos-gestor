@@ -67,24 +67,16 @@ export function TarifasProvider({ children }) {
         tipo: 'Plan Musculación',
         duracionMeses: Number(nuevoPlan.meses) || 1,
         precio: Number(nuevoPlan.precio),
-        activo: nuevoPlan.activo !== undefined ? nuevoPlan.activo : true,
+        activo: nuevoPlan.estado ? nuevoPlan.estado === 'Activo' : (nuevoPlan.activo !== false),
         promocionReferidos: nuevoPlan.promocionReferidos || '',
         descripcion: nuevoPlan.descripcion || ''
       })
-      const planNorm = {
-        id: creado._id || creado.id,
-        nombre: creado.nombre,
-        meses: creado.duracionMeses,
-        precio: creado.precio,
-        activo: creado.activo,
-        promocionReferidos: creado.promocionReferidos,
-        descripcion: creado.descripcion
-      }
-      setPlanes(prev => [...prev, planNorm])
-      return planNorm
+      await fetchTarifas()
+      return creado
     } catch (err) {
+      console.warn('Error al crear plan en DB, usando fallback local:', err.message)
       const id = Date.now()
-      const planNorm = { id, activo: true, ...nuevoPlan, meses: Number(nuevoPlan.meses) || 1, precio: Number(nuevoPlan.precio) }
+      const planNorm = { id, activo: true, estado: 'Activo', ...nuevoPlan, meses: Number(nuevoPlan.meses) || 1, precio: Number(nuevoPlan.precio) }
       setPlanes(prev => [...prev, planNorm])
       return planNorm
     }
@@ -94,30 +86,33 @@ export function TarifasProvider({ children }) {
     try {
       await tarifasApi.update(id, {
         nombre: datosActualizados.nombre,
+        tipo: 'Plan Musculación',
         duracionMeses: Number(datosActualizados.meses),
         precio: Number(datosActualizados.precio),
-        activo: datosActualizados.activo,
+        activo: datosActualizados.estado ? datosActualizados.estado === 'Activo' : (datosActualizados.activo !== false),
         promocionReferidos: datosActualizados.promocionReferidos,
         descripcion: datosActualizados.descripcion
       })
+      await fetchTarifas()
     } catch (err) {
-      console.warn('Update local:', err.message)
+      console.warn('Error al actualizar plan en DB, usando fallback local:', err.message)
+      setPlanes(prev => prev.map(p => p.id === id ? {
+        ...p,
+        ...datosActualizados,
+        meses: Number(datosActualizados.meses) || p.meses,
+        precio: Number(datosActualizados.precio) || p.precio
+      } : p))
     }
-    setPlanes(prev => prev.map(p => p.id === id ? {
-      ...p,
-      ...datosActualizados,
-      meses: Number(datosActualizados.meses) || p.meses,
-      precio: Number(datosActualizados.precio) || p.precio
-    } : p))
   }
 
   const deletePlan = async (id) => {
     try {
       await tarifasApi.delete(id)
+      await fetchTarifas()
     } catch (err) {
-      console.warn('Delete local:', err.message)
+      console.warn('Delete local plan:', err.message)
+      setPlanes(prev => prev.filter(p => p.id !== id))
     }
-    setPlanes(prev => prev.filter(p => p.id !== id))
   }
 
   // CRUD Disciplinas
@@ -128,22 +123,15 @@ export function TarifasProvider({ children }) {
         tipo: 'Clase/Disciplina',
         precio: Number(nuevaDisc.precio),
         frecuencia: nuevaDisc.frecuencia,
-        cupos: Number(nuevaDisc.cupos) || 20,
-        activo: nuevaDisc.activo !== undefined ? nuevaDisc.activo : true
+        cupos: Number(nuevaDisc.capacidad || nuevaDisc.cupos) || 20,
+        activo: nuevaDisc.estado ? nuevaDisc.estado === 'Activo' : (nuevaDisc.activo !== false)
       })
-      const discNorm = {
-        id: creado._id || creado.id,
-        nombre: creado.nombre,
-        precio: creado.precio,
-        frecuencia: creado.frecuencia,
-        cupos: creado.cupos,
-        activo: creado.activo
-      }
-      setDisciplinas(prev => [...prev, discNorm])
-      return discNorm
+      await fetchTarifas()
+      return creado
     } catch (err) {
+      console.warn('Error al crear disciplina en DB, usando fallback local:', err.message)
       const id = Date.now()
-      const discNorm = { id, activo: true, ...nuevaDisc, precio: Number(nuevaDisc.precio), cupos: Number(nuevaDisc.cupos) || 20 }
+      const discNorm = { id, activo: true, estado: 'Activo', ...nuevaDisc, precio: Number(nuevaDisc.precio), cupos: Number(nuevaDisc.capacidad || nuevaDisc.cupos) || 20 }
       setDisciplinas(prev => [...prev, discNorm])
       return discNorm
     }
@@ -151,25 +139,34 @@ export function TarifasProvider({ children }) {
 
   const updateDisciplina = async (id, datosActualizados) => {
     try {
-      await tarifasApi.update(id, datosActualizados)
+      await tarifasApi.update(id, {
+        nombre: datosActualizados.nombre,
+        tipo: 'Clase/Disciplina',
+        precio: Number(datosActualizados.precio),
+        frecuencia: datosActualizados.frecuencia,
+        cupos: Number(datosActualizados.capacidad || datosActualizados.cupos) || 20,
+        activo: datosActualizados.estado ? datosActualizados.estado === 'Activo' : (datosActualizados.activo !== false)
+      })
+      await fetchTarifas()
     } catch (err) {
-      console.warn('Update local:', err.message)
+      console.warn('Error al actualizar disciplina en DB, usando fallback local:', err.message)
+      setDisciplinas(prev => prev.map(d => d.id === id ? {
+        ...d,
+        ...datosActualizados,
+        precio: Number(datosActualizados.precio) || d.precio,
+        cupos: Number(datosActualizados.capacidad || datosActualizados.cupos) || d.cupos
+      } : d))
     }
-    setDisciplinas(prev => prev.map(d => d.id === id ? {
-      ...d,
-      ...datosActualizados,
-      precio: Number(datosActualizados.precio) || d.precio,
-      cupos: Number(datosActualizados.cupos) || d.cupos
-    } : d))
   }
 
   const deleteDisciplina = async (id) => {
     try {
       await tarifasApi.delete(id)
+      await fetchTarifas()
     } catch (err) {
-      console.warn('Delete local:', err.message)
+      console.warn('Delete local disciplina:', err.message)
+      setDisciplinas(prev => prev.filter(d => d.id !== id))
     }
-    setDisciplinas(prev => prev.filter(d => d.id !== id))
   }
 
   // Helper para buscar plan por nombre

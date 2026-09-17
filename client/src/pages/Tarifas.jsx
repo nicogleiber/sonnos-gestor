@@ -632,7 +632,7 @@ export default function Tarifas() {
           <div className="bg-white rounded-2xl border border-[#e0e0e0] shadow-sm overflow-hidden mt-8">
             <div className="px-6 py-4 border-b border-[#e0e0e0] bg-[#f8f9fa] flex items-center justify-between">
               <h3 className="font-black text-sm text-[#1a1a1a] uppercase tracking-wider">
-                Resumen de Aranceles — Musculación
+                Resumen de Planes — Musculación
               </h3>
               <span className="text-xs text-gray-500">
                 Sincronizado con el formulario de Socios

@@ -17,14 +17,13 @@ import {
   CalendarDays,
   UserPlus,
   Trash2,
-  Settings,
   UserCheck
 } from 'lucide-react'
 import { diasSemana, salones } from '../data/mockData'
 import { useCalendario } from '../context/CalendarioContext'
 import { usePersonal } from '../context/PersonalContext'
 import { useSocios } from '../context/SociosContext'
-import ConfiguracionModal from '../components/ConfiguracionModal'
+
 
 const HORAS = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '17:00', '18:00', '19:00', '20:00', '21:00']
 
@@ -498,7 +497,6 @@ export default function Calendario() {
 
   const [modalClaseData, setModalClaseData] = useState(null)
   const [prefillCelda, setPrefillCelda] = useState(null)
-  const [showConfigModal, setShowConfigModal] = useState(false)
   const [toastMessage, setToastMessage] = useState(null)
 
   const mostrarToast = msg => {
@@ -507,7 +505,7 @@ export default function Calendario() {
   }
 
   // Fechas de la semana
-  const today = new Date(2026, 8, 2) // Hoy
+  const today = new Date() // Hoy real
   const startOfWeek = new Date(today)
   startOfWeek.setDate(today.getDate() + semanaOffset * 7)
 
@@ -583,11 +581,6 @@ export default function Calendario() {
         />
       )}
 
-      <ConfiguracionModal
-        isOpen={showConfigModal}
-        onClose={() => setShowConfigModal(false)}
-        onGuardado={() => mostrarToast('⚙️ Horarios del gimnasio actualizados.')}
-      />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -606,13 +599,6 @@ export default function Calendario() {
 
         {/* Controls */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowConfigModal(true)}
-            className="p-2.5 rounded-2xl border border-[#e0e0e0] bg-white text-gray-700 hover:bg-[#f1f3f5] shadow-sm cursor-pointer"
-            title="Configurar Horarios del Gimnasio"
-          >
-            <Settings size={16} />
-          </button>
 
           <button
             onClick={() => setPrefillCelda({ dia: 'Lunes', horario: '08:00', fechaEspecifica: weekDates[0].fechaStr })}

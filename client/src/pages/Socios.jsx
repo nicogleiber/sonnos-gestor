@@ -28,31 +28,40 @@ import {
 } from 'lucide-react'
 import { useSocios } from '../context/SociosContext'
 import { useTarifas } from '../context/TarifasContext'
-import { getEstadoPago, formatearFecha } from '../utils/paymentUtils'
+import { getEstadoPago, formatearFecha, calcularNuevaFechaVtoCobro } from '../utils/paymentUtils'
 import WhatsAppModal from '../components/WhatsAppModal'
 
 // ============================================
-// MODAL: NUEVO SOCIO
+// MODAL: NUEVO / EDITAR SOCIO
 // ============================================
-function ModalNuevoSocio({ onClose, onSave }) {
+function ModalSocio({ socio, onClose, onSave }) {
   const { planesActivos, calcularVencimientoPorPlan } = useTarifas()
 
+  const isEditing = !!socio
+
   const [form, setForm] = useState({
-    nombre: '',
-    apellido: '',
-    telefono: '',
-    email: '',
-    dni: '',
-    genero: 'Prefiero no decirlo',
-    suscripcion: planesActivos[0]?.nombre || 'Pase Libre Mensual',
-    observaciones: '',
+    nombre: socio?.nombre || '',
+    apellido: socio?.apellido || '',
+    telefono: socio?.telefono || '',
+    email: socio?.email || '',
+    dni: socio?.dni || '',
+    genero: socio?.genero || 'Prefiero no decirlo',
+    suscripcion: socio?.tipoSuscripcion || socio?.suscripcion || planesActivos[0]?.nombre || 'Pase Libre Mensual',
+    activo: socio?.activo !== undefined ? socio.activo : true,
+    observaciones: socio?.observaciones || '',
   })
 
-  const fechaVencimientoCalculada = calcularVencimientoPorPlan(new Date(), form.suscripcion)
+  // Fecha de vencimiento calculada automáticamente para nuevos socios o si cambia el plan
+  const fechaVencimientoCalculada = isEditing && socio?.fechaVencimiento
+    ? socio.fechaVencimiento
+    : calcularVencimientoPorPlan(new Date(), form.suscripcion)
 
   const handleChange = (e) => {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    const { name, value, type, checked } = e.target
+    setForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
   }
 
   const handleSubmit = (e) => {
@@ -60,10 +69,11 @@ function ModalNuevoSocio({ onClose, onSave }) {
     onSave({
       ...form,
       tipoSuscripcion: form.suscripcion,
+      suscripcion: form.suscripcion,
       fechaVencimiento: fechaVencimientoCalculada,
       fechaVto: fechaVencimientoCalculada,
-      fechaAlta: new Date().toISOString(),
-      estadoPago: 'Al Día',
+      fechaAlta: isEditing ? (socio.fechaAlta || socio.createdAt) : new Date().toISOString(),
+      estadoPago: isEditing ? socio.estadoPago : 'Al Día',
     })
     onClose()
   }
@@ -75,11 +85,15 @@ function ModalNuevoSocio({ onClose, onSave }) {
         <div className="bg-[#121212] border-b border-[#242424] px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#e41d28] flex items-center justify-center text-white font-bold">
-              +
+              {isEditing ? <Edit2 size={16} /> : '+'}
             </div>
             <div>
-              <h3 className="text-white font-black text-lg tracking-wide">Nuevo Socio</h3>
-              <p className="text-gray-400 text-xs">Ingreso y cálculo automático de vencimiento</p>
+              <h3 className="text-white font-black text-lg tracking-wide">
+                {isEditing ? 'Editar Datos del Socio' : 'Nuevo Socio'}
+              </h3>
+              <p className="text-gray-400 text-xs">
+                {isEditing ? 'Actualización en MongoDB Atlas' : 'Ingreso y cálculo automático de vencimiento'}
+              </p>
             </div>
           </div>
           <button
@@ -170,7 +184,7 @@ function ModalNuevoSocio({ onClose, onSave }) {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Tipo de Suscripción</label>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Tipo de Suscripción / Plan</label>
             <select
               name="suscripcion"
               value={form.suscripcion}
@@ -185,16 +199,18 @@ function ModalNuevoSocio({ onClose, onSave }) {
             </select>
           </div>
 
-          {/* Campo Informativo: Fecha de Vencimiento Calculada */}
+          {/* Campo Informativo: Fecha de Vencimiento */}
           <div className="p-4 rounded-2xl bg-[#fde8e9] border border-[#e41d28]/30 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold text-[#e41d28] uppercase tracking-wide">Fecha de Vencimiento Calculada</p>
+              <p className="text-xs font-bold text-[#e41d28] uppercase tracking-wide">
+                {isEditing ? 'Fecha de Vencimiento Actual' : 'Fecha de Vencimiento Calculada'}
+              </p>
               <p className="text-base font-black text-[#1a1a1a] mt-0.5">
                 {formatearFecha(fechaVencimientoCalculada)}
               </p>
             </div>
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-white text-[#e41d28] border border-[#e41d28]/30 shadow-xs">
-              Automático ⚡
+              {isEditing ? 'Sincronizado' : 'Automático ⚡'}
             </span>
           </div>
 
@@ -209,9 +225,9 @@ function ModalNuevoSocio({ onClose, onSave }) {
             </button>
             <button
               type="submit"
-              className="flex-1 bg-[#e41d28] text-white rounded-xl py-3 text-sm font-black hover:bg-[#c71620] transition-colors shadow-lg shadow-red-600/30 uppercase tracking-wider"
+              className="flex-1 bg-[#e41d28] text-white rounded-xl py-3 text-sm font-black hover:bg-[#c71620] transition-colors shadow-lg shadow-red-600/30 uppercase tracking-wider cursor-pointer"
             >
-              Guardar Socio
+              {isEditing ? 'Guardar Cambios' : 'Registrar Socio'}
             </button>
           </div>
         </form>
@@ -224,12 +240,17 @@ function ModalNuevoSocio({ onClose, onSave }) {
 // MODAL: COBRAR CUOTA (Mercado Pago / Efectivo)
 // ============================================
 function ModalCobro({ socio, onClose, onMarcarPagado }) {
-  const { getPlanByName, calcularVencimientoPorPlan } = useTarifas()
+  const { getPlanByName } = useTarifas()
   const [metodo, setMetodo] = useState('mp')
 
   const planInfo = getPlanByName(socio.suscripcion || socio.tipoSuscripcion)
-  const nuevaFechaVto = calcularVencimientoPorPlan(new Date(), socio.suscripcion || socio.tipoSuscripcion)
-  const estadoActual = getEstadoPago(socio.fechaVencimiento || socio.fechaVto)
+  const mesesPlan = planInfo?.meses || 1
+
+  // Lógica de cálculo de extensión de cobro:
+  // - Si el socio está al día (su fecha de vencimiento actual es hoy o futura), se extiende 1 mes a partir de su vencimiento previo (ej: si vencía el 15/10, al cobrar pasa al 15/11).
+  // - Regla para socios ya vencidos: Si la fecha de vencimiento actual es menor a new Date(), se extiende 1 mes a partir de la fecha actual de cobro (hoy).
+  const { nuevaFechaVto, eraVencido } = calcularNuevaFechaVtoCobro(socio, mesesPlan)
+  const vtoAnterior = socio.fechaVencimiento || socio.fechaVto
 
   const handleConfirmarPago = () => {
     onMarcarPagado(socio.id, nuevaFechaVto, metodo, planInfo?.precio || 18000)
@@ -268,6 +289,25 @@ function ModalCobro({ socio, onClose, onMarcarPagado }) {
                 ${(planInfo?.precio || 18000).toLocaleString('es-AR')}
               </p>
             </div>
+          </div>
+
+          {/* Detalle de Extensión de Vencimiento */}
+          <div className="p-3.5 rounded-2xl bg-[#fde8e9]/50 border border-[#e41d28]/30 space-y-1 text-xs">
+            <div className="flex justify-between items-center text-gray-600">
+              <span>Vencimiento actual:</span>
+              <strong className="text-gray-800">{formatearFecha(vtoAnterior)}</strong>
+            </div>
+            <div className="flex justify-between items-center text-[#e41d28] font-black pt-1 border-t border-[#e41d28]/20">
+              <span>Nuevo Vencimiento:</span>
+              <span className="text-sm bg-white px-2.5 py-0.5 rounded-lg border border-[#e41d28]/30 shadow-2xs">
+                {formatearFecha(nuevaFechaVto)}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-500 pt-0.5">
+              {eraVencido
+                ? 'ℹ️ Socio con cuota vencida: vencimiento extendido 1 mes desde hoy.'
+                : 'ℹ️ Socio al día: vencimiento extendido 1 mes sobre su fecha actual.'}
+            </p>
           </div>
 
           {/* Selector de Método */}
@@ -310,7 +350,7 @@ function ModalCobro({ socio, onClose, onMarcarPagado }) {
 // PÁGINA PRINCIPAL: SOCIOS
 // ============================================
 export default function Socios() {
-  const { socios, addSocio, deleteSocio, registrarPago } = useSocios()
+  const { socios, addSocio, updateSocio, deleteSocio, registrarPago } = useSocios()
   const { planes } = useTarifas()
 
   const [busqueda, setBusqueda] = useState('')
@@ -321,6 +361,7 @@ export default function Socios() {
   const [filtroAbandonos, setFiltroAbandonos] = useState(false)
 
   const [showModalNuevo, setShowModalNuevo] = useState(false)
+  const [socioAEditar, setSocioAEditar] = useState(null)
   const [socioACobrar, setSocioACobrar] = useState(null)
   const [sociosSeleccionados, setSociosSeleccionados] = useState([])
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false)
@@ -410,11 +451,23 @@ export default function Socios() {
 
       {/* Modales */}
       {showModalNuevo && (
-        <ModalNuevoSocio
+        <ModalSocio
+          socio={null}
           onClose={() => setShowModalNuevo(false)}
           onSave={async (nuevo) => {
             await addSocio(nuevo)
             mostrarToast('✅ Socio registrado exitosamente en MongoDB Atlas.')
+          }}
+        />
+      )}
+
+      {socioAEditar && (
+        <ModalSocio
+          socio={socioAEditar}
+          onClose={() => setSocioAEditar(null)}
+          onSave={async (datos) => {
+            await updateSocio(socioAEditar.id, datos)
+            mostrarToast('✏️ Datos del socio actualizados en MongoDB Atlas.')
           }}
         />
       )}
@@ -680,6 +733,13 @@ export default function Socios() {
                           className="px-3 py-1.5 rounded-xl bg-[#e41d28] text-white font-bold text-[11px] hover:bg-[#c71620] shadow-sm cursor-pointer"
                         >
                           Cobrar
+                        </button>
+                        <button
+                          onClick={() => setSocioAEditar(s)}
+                          className="p-1.5 rounded-lg border border-[#e0e0e0] text-gray-600 hover:text-black hover:bg-gray-100 cursor-pointer"
+                          title="Editar Socio"
+                        >
+                          <Edit2 size={13} />
                         </button>
                         <button
                           onClick={() => {

@@ -106,6 +106,8 @@ directApiRouter.use('/payments', require('./routes/payment.routes'));
 directApiRouter.use('/pagos', require('./routes/payment.routes'));
 
 directApiRouter.use('/dashboard', require('./routes/dashboard.routes'));
+directApiRouter.use('/configuracion', require('./routes/gym.routes'));
+directApiRouter.use('/gym', require('./routes/gym.routes'));
 
 app.use('/api', directApiRouter);
 

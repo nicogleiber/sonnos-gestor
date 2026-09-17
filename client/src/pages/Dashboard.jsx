@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Users,
@@ -14,6 +14,7 @@ import {
 import { useSocios } from '../context/SociosContext'
 import { useTarifas } from '../context/TarifasContext'
 import { useCalendario } from '../context/CalendarioContext'
+import { dashboardApi } from '../api/dashboardApi'
 import { getEstadoPago } from '../utils/paymentUtils'
 
 // ============================================
@@ -390,28 +391,75 @@ export default function Dashboard() {
   const { planes, getPlanByName } = useTarifas()
   const { eventos } = useCalendario()
 
+  const [serverDashboard, setServerDashboard] = useState(null)
+  const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [modalDesgloseOpen, setModalDesgloseOpen] = useState(false)
   const [modalIngresosOpen, setModalIngresosOpen] = useState(false)
   const [modalClasesHoyOpen, setModalClasesHoyOpen] = useState(false)
+
+  // Carga reactiva de datos del backend (/dashboard)
+  useEffect(() => {
+    let isMounted = true
+    const loadDashboard = async () => {
+      setLoadingDashboard(true)
+      try {
+        const res = await dashboardApi.getDashboard()
+        if (isMounted && res) {
+          setServerDashboard(res)
+        }
+      } catch (err) {
+        console.warn('Dashboard usando contexto local como fallback:', err.message)
+      } finally {
+        if (isMounted) setLoadingDashboard(false)
+      }
+    }
+    loadDashboard()
+    return () => { isMounted = false }
+  }, [])
 
   const sociosAlDia = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'al-dia')
   const sociosEnCobro = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'cobro')
   const sociosInactivos = socios.filter(s => getEstadoPago(s.fechaVencimiento || s.fechaVto).key === 'inactivo')
 
-  const sociosActivosCount = sociosAlDia.length + sociosEnCobro.length
+  const sociosActivosCount = serverDashboard?.socios?.totalActivos !== undefined
+    ? serverDashboard.socios.totalActivos
+    : (sociosAlDia.length + sociosEnCobro.length)
+
+  const sociosTotalCount = socios.length
 
   // Recaudación real y proyectada
-  const ingresosMensuales = socios.reduce((acc, s) => {
+  const ingresosMensualesCalculados = socios.reduce((acc, s) => {
     const estado = getEstadoPago(s.fechaVencimiento || s.fechaVto)
     const plan = getPlanByName(s.tipoSuscripcion || s.suscripcion)
     const precio = plan?.precio || 18000
     return (estado.key === 'al-dia' || estado.key === 'cobro') ? acc + precio : acc
   }, 0)
 
+  const ingresosMensuales = serverDashboard?.ventas?.totalMes !== undefined && serverDashboard?.ventas?.totalMes > 0
+    ? serverDashboard.ventas.totalMes
+    : ingresosMensualesCalculados
+
   // Clases del día actual
   const diasSemanaNombres = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
   const hoyDiaNombre = diasSemanaNombres[new Date().getDay()] || 'Lunes'
-  const clasesHoy = eventos.filter(c => c.dia === hoyDiaNombre || c.dia === 'Lunes').sort((a, b) => a.horario.localeCompare(b.horario))
+
+  // Si el backend trajo clases en /dashboard las adaptamos, o usamos eventos de hoy
+  const serverClases = (serverDashboard?.clases?.proximas || []).map(c => ({
+    id: c._id || c.id,
+    clase: c.nombre || c.clase,
+    salon: c.salon,
+    profesor: c.profesor || 'Profesor Sonnos',
+    horario: c.horario,
+    cupos: c.cupoMaximo || c.cupos || 20,
+    inscriptos: c.inscritos ? c.inscritos.length : (c.inscriptos || 0),
+    dia: c.dia || hoyDiaNombre
+  }))
+
+  const clasesHoyContexto = eventos
+    .filter(c => c.dia === hoyDiaNombre || c.dia === 'Lunes')
+    .sort((a, b) => (a.horario || '').localeCompare(b.horario || ''))
+
+  const clasesHoy = serverClases.length > 0 ? serverClases : clasesHoyContexto
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">

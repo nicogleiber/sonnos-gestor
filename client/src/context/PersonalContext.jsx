@@ -1,26 +1,24 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { profesoresApi } from '../api/profesoresApi'
-import { personal as initialPersonal } from '../data/mockData'
 
 const PersonalContext = createContext()
 
 export function PersonalProvider({ children }) {
-  const [profesores, setProfesores] = useState(initialPersonal)
+  const [profesores, setProfesores] = useState([])
   const [loading, setLoading] = useState(false)
 
   const fetchProfesores = useCallback(async () => {
     setLoading(true)
     try {
       const data = await profesoresApi.getAll()
-      if (data && data.length > 0) {
-        setProfesores(data.map(p => ({
-          ...p,
-          id: p._id || p.id,
-          consultasAcordadas: p.consultasAcordadas || []
-        })))
-      }
+      const lista = Array.isArray(data) ? data : []
+      setProfesores(lista.map(p => ({
+        ...p,
+        id: p._id || p.id,
+        consultasAcordadas: p.consultasAcordadas || []
+      })))
     } catch (err) {
-      console.warn('Usando personal local:', err.message)
+      console.warn('Error al cargar personal desde DB:', err.message)
     } finally {
       setLoading(false)
     }
@@ -33,14 +31,10 @@ export function PersonalProvider({ children }) {
   const addProfesor = async (nuevoProfesor) => {
     try {
       const creado = await profesoresApi.create(nuevoProfesor)
-      const profNorm = {
-        ...creado,
-        id: creado._id || creado.id,
-        consultasAcordadas: creado.consultasAcordadas || []
-      }
-      setProfesores(prev => [profNorm, ...prev])
-      return profNorm
+      await fetchProfesores()
+      return creado
     } catch (err) {
+      console.warn('Error al crear profesor en DB:', err.message)
       const id = Date.now()
       const profesorCreado = {
         id,
@@ -56,19 +50,21 @@ export function PersonalProvider({ children }) {
   const updateProfesor = async (id, datosActualizados) => {
     try {
       await profesoresApi.update(id, datosActualizados)
+      await fetchProfesores()
     } catch (err) {
-      console.warn('Update local profesor:', err.message)
+      console.warn('Error al actualizar profesor en DB:', err.message)
+      setProfesores(prev => prev.map(p => p.id === id ? { ...p, ...datosActualizados } : p))
     }
-    setProfesores(prev => prev.map(p => p.id === id ? { ...p, ...datosActualizados } : p))
   }
 
   const deleteProfesor = async (id) => {
     try {
       await profesoresApi.delete(id)
+      await fetchProfesores()
     } catch (err) {
-      console.warn('Delete local profesor:', err.message)
+      console.warn('Error al eliminar profesor en DB:', err.message)
+      setProfesores(prev => prev.filter(p => p.id !== id))
     }
-    setProfesores(prev => prev.filter(p => p.id !== id))
   }
 
   // Programar consulta nutricional / física

@@ -1,22 +1,16 @@
 import { apiFetch } from './config'
-import { socios as mockSocios } from '../data/mockData'
 
 export const sociosApi = {
   getAll: async (params = {}) => {
-    try {
-      const searchParams = new URLSearchParams()
-      if (params.q) searchParams.append('q', params.q)
-      if (params.estado) searchParams.append('estado', params.estado)
-      if (params.desde) searchParams.append('desde', params.desde)
-      if (params.hasta) searchParams.append('hasta', params.hasta)
-      if (params.abandonos) searchParams.append('abandonos', 'true')
+    const searchParams = new URLSearchParams()
+    if (params.q) searchParams.append('q', params.q)
+    if (params.estado) searchParams.append('estado', params.estado)
+    if (params.desde) searchParams.append('desde', params.desde)
+    if (params.hasta) searchParams.append('hasta', params.hasta)
+    if (params.abandonos) searchParams.append('abandonos', 'true')
 
-      const queryStr = searchParams.toString() ? `?${searchParams.toString()}` : ''
-      return await apiFetch(`/socios${queryStr}`)
-    } catch (e) {
-      console.warn('Usando mock fallback para socios:', e.message)
-      return mockSocios
-    }
+    const queryStr = searchParams.toString() ? `?${searchParams.toString()}` : ''
+    return await apiFetch(`/socios${queryStr}`)
   },
 
   getById: async (id) => {

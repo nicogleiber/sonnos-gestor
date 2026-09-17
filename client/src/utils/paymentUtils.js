@@ -30,6 +30,44 @@ export function calcularFechaVencimiento(fechaBase = new Date(), tipoSuscripcion
 }
 
 /**
+ * LÓGICA DE EXTENSIÓN DE COBRO DE CUOTA:
+ * 1. Si el socio está al día (su fecha de vencimiento actual es hoy o futura), se extiende 1 mes a partir de su vencimiento previo (ej: si vencía el 15/10, al cobrar pasa al 15/11).
+ * 2. Regla para socios ya vencidos: Si la fecha de vencimiento actual es menor a new Date(), se extiende 1 mes a partir de la fecha actual de cobro (hoy).
+ *
+ * @param {Object} socio
+ * @param {number} meses
+ * @returns {{ nuevaFechaVto: string, fechaBaseUsada: Date, eraVencido: boolean }}
+ */
+export function calcularNuevaFechaVtoCobro(socio, meses = 1) {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  const vtoActualStr = socio?.fechaVencimiento || socio?.fechaVto
+  let vtoActual = null
+  if (vtoActualStr) {
+    vtoActual = new Date(vtoActualStr)
+    vtoActual.setHours(0, 0, 0, 0)
+  }
+
+  // Regla: si el socio ya está vencido (< hoy), extender 1 mes desde hoy; si está al día, extender desde su vencimiento actual
+  const eraVencido = !vtoActual || isNaN(vtoActual.getTime()) || vtoActual < hoy
+  const baseDate = eraVencido ? new Date() : new Date(vtoActual)
+
+  const target = new Date(baseDate)
+  target.setMonth(target.getMonth() + (Number(meses) || 1))
+
+  const yyyy = target.getFullYear()
+  const mm = String(target.getMonth() + 1).padStart(2, '0')
+  const dd = String(target.getDate()).padStart(2, '0')
+
+  return {
+    nuevaFechaVto: `${yyyy}-${mm}-${dd}`,
+    fechaBaseUsada: baseDate,
+    eraVencido
+  }
+}
+
+/**
  * Formatea una fecha YYYY-MM-DD o ISO a formato legible en español
  * @param {string|Date} fechaStr
  * @returns {string}

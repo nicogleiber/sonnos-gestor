@@ -51,14 +51,14 @@ const getDashboard = catchAsync(async (req, res) => {
       .sort({ stock: 1 })
       .limit(10),
 
-    // Proximas 5 clases
+    // Proximas clases programadas
     Class.find({
       gym: gymId,
       activo: true,
     })
-      .select('nombre tipo salon horario cupoMaximo inscriptos')
-      .sort({ 'horario.hora': 1 })
-      .limit(5),
+      .select('nombre tipo salon horario cupoMaximo inscriptos profesor dia dias duracion inscritos')
+      .sort({ horario: 1 })
+      .limit(15),
   ]);
 
   const [totalSocios, nuevosSocios, membresiasVencidas] = sociosStats;

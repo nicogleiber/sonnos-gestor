@@ -318,12 +318,19 @@ const registrarPago = catchAsync(async (req, res) => {
     throw ApiError.notFound('Socio no encontrado');
   }
 
-  // Si no se envía fecha explícita, extender desde la fecha actual de vencimiento
+  // LÓGICA DE EXTENSIÓN DE VENCIMIENTO DE COBRO (Backend):
+  // 1. Si se envía nuevaFechaVto explícita, se respeta dicha fecha.
+  // 2. Si no se envía:
+  //    - Si el socio está al día (su fecha de vencimiento actual es hoy o futura), se extiende 1 mes exacto sobre el vencimiento actual.
+  //    - Si el socio ya está vencido (fecha de vencimiento actual < hoy), se extiende 1 mes a partir de la fecha actual de cobro (hoy).
   let fechaVtoFinal;
   if (nuevaFechaVto) {
     fechaVtoFinal = new Date(nuevaFechaVto);
   } else {
-    const baseDate = member.fechaVencimiento ? new Date(member.fechaVencimiento) : new Date();
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const vtoActual = member.fechaVencimiento ? new Date(member.fechaVencimiento) : null;
+    const baseDate = (vtoActual && vtoActual >= hoy) ? vtoActual : new Date();
     fechaVtoFinal = new Date(baseDate);
     fechaVtoFinal.setMonth(fechaVtoFinal.getMonth() + 1);
   }

@@ -1,11 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { sociosApi } from '../api/sociosApi'
-import { socios as initialMockSocios } from '../data/mockData'
 
 const SociosContext = createContext()
 
 export function SociosProvider({ children }) {
-  const [socios, setSocios] = useState(initialMockSocios)
+  const [socios, setSocios] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -14,8 +13,9 @@ export function SociosProvider({ children }) {
     setError(null)
     try {
       const data = await sociosApi.getAll(params)
+      const lista = Array.isArray(data) ? data : []
       // Adaptar IDs si vienen de MongoDB _id
-      const normalizados = data.map(s => ({
+      const normalizados = lista.map(s => ({
         ...s,
         id: s._id || s.id,
         fechaVto: s.fechaVencimiento || s.fechaVto,
@@ -23,7 +23,8 @@ export function SociosProvider({ children }) {
       }))
       setSocios(normalizados)
     } catch (err) {
-      console.warn('Usando estado local para socios:', err.message)
+      console.warn('Error al cargar socios desde DB:', err.message)
+      setError(err.message)
     } finally {
       setLoading(false)
     }

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { GymProvider } from './context/GymContext'
 import { SociosProvider } from './context/SociosContext'
 import { CajaProvider } from './context/CajaContext'
 import { TarifasProvider } from './context/TarifasContext'
@@ -21,47 +22,50 @@ import Notificaciones from './pages/Notificaciones'
 export default function App() {
   return (
     <AuthProvider>
-      <SociosProvider>
-        <CajaProvider>
-          <TarifasProvider>
-            <PersonalProvider>
-              <CalendarioProvider>
-                <BrowserRouter>
-                  <Routes>
-                    {/* Ruta Pública de Autenticación */}
-                    <Route path="/login" element={<Login />} />
+      <GymProvider>
+        <SociosProvider>
+          <CajaProvider>
+            <TarifasProvider>
+              <PersonalProvider>
+                <CalendarioProvider>
+                  <BrowserRouter>
+                    <Routes>
+                      {/* Ruta Pública de Autenticación */}
+                      <Route path="/login" element={<Login />} />
 
-                    {/* Rutas Privadas Protegidas */}
-                    <Route
-                      path="/*"
-                      element={
-                        <ProtectedRoute>
-                          <Layout>
-                            <Routes>
-                              <Route path="/" element={<Dashboard />} />
-                              <Route path="/socios" element={<Socios />} />
-                              <Route path="/planes" element={<Tarifas />} />
-                              <Route path="/tarifas" element={<Navigate to="/planes" replace />} />
-                              <Route path="/tienda" element={<Tienda />} />
-                              <Route path="/caja" element={<Caja />} />
-                              <Route path="/clases" element={<Clases />} />
-                              <Route path="/calendario" element={<Calendario />} />
-                              <Route path="/personal" element={<Personal />} />
-                              <Route path="/notificaciones" element={<Notificaciones />} />
-                              <Route path="*" element={<Navigate to="/" replace />} />
-                            </Routes>
-                          </Layout>
-                        </ProtectedRoute>
-                      }
-                    />
-                  </Routes>
-                </BrowserRouter>
-              </CalendarioProvider>
-            </PersonalProvider>
-          </TarifasProvider>
-        </CajaProvider>
-      </SociosProvider>
+                      {/* Rutas Privadas Protegidas */}
+                      <Route
+                        path="/*"
+                        element={
+                          <ProtectedRoute>
+                            <Layout>
+                              <Routes>
+                                <Route path="/" element={<Dashboard />} />
+                                <Route path="/socios" element={<Socios />} />
+                                <Route path="/planes" element={<Tarifas />} />
+                                <Route path="/tarifas" element={<Navigate to="/planes" replace />} />
+                                <Route path="/tienda" element={<Tienda />} />
+                                <Route path="/caja" element={<Caja />} />
+                                <Route path="/clases" element={<Clases />} />
+                                <Route path="/calendario" element={<Calendario />} />
+                                <Route path="/personal" element={<Personal />} />
+                                <Route path="/notificaciones" element={<Notificaciones />} />
+                                <Route path="*" element={<Navigate to="/" replace />} />
+                              </Routes>
+                            </Layout>
+                          </ProtectedRoute>
+                        }
+                      />
+                    </Routes>
+                  </BrowserRouter>
+                </CalendarioProvider>
+              </PersonalProvider>
+            </TarifasProvider>
+          </CajaProvider>
+        </SociosProvider>
+      </GymProvider>
     </AuthProvider>
   )
 }
+
 

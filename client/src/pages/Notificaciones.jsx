@@ -3,27 +3,28 @@ import {
   Bell,
   AlertCircle,
   Clock,
-  UserCheck,
-  Calendar,
-  Gift,
-  CheckCircle2,
-  Sparkles,
-  MessageSquare,
-  ShieldAlert
+  MessageSquare
 } from 'lucide-react'
 import { useSocios } from '../context/SociosContext'
 import { usePersonal } from '../context/PersonalContext'
-import { formatearFecha } from '../utils/paymentUtils'
+import { formatearFecha, getEstadoPago } from '../utils/paymentUtils'
 
 export default function Notificaciones() {
   const { socios } = useSocios()
   const { profesores } = usePersonal()
 
-  const [tab, setTab] = useState('gimnasio') // 'gimnasio' | 'profesores' | 'socios'
+  const [tab, setTab] = useState('gimnasio') // 'gimnasio' | 'profesores'
 
-  const sociosEnCobro = socios.filter(s => s.estadoPago === 'En Fecha de Cobro')
-  const sociosVencidos = socios.filter(s => s.estadoPago === 'Vencida')
-  const sociosInactivos = socios.filter(s => s.estadoPago === 'Inactivo')
+  // Calcular estados dinámicamente con getEstadoPago
+  const sociosConEstado = socios.map(s => {
+    const estado = getEstadoPago(s.fechaVencimiento || s.fechaVto)
+    return { ...s, infoEstado: estado }
+  })
+
+  // En fecha de cobro: 0 a 7 días restantes
+  const sociosEnCobro = sociosConEstado.filter(s => s.infoEstado.key === 'cobro')
+  // Vencidos: menos de 0 días
+  const sociosVencidos = sociosConEstado.filter(s => s.infoEstado.key === 'vencido' || s.infoEstado.key === 'inactivo')
 
   // Extraer consultas pendientes de todos los profesores
   const todasLasConsultas = []
@@ -49,11 +50,11 @@ export default function Notificaciones() {
             <h2 className="text-2xl font-black text-[#1a1a1a] tracking-tight">Centro de Notificaciones & Alertas</h2>
           </div>
           <p className="text-gray-500 text-sm">
-            Monitoreo proactivo de vencimientos, consultas acordadas y novedades operativas.
+            Monitoreo proactivo de cobros próximos, cuotas vencidas y consultas acordadas del personal.
           </p>
         </div>
 
-        {/* Tab Toggle */}
+        {/* Tab Toggle - Solo Gimnasio y Profesores */}
         <div className="flex bg-[#f1f3f5] p-1 rounded-2xl border border-[#e0e0e0] w-fit">
           <button
             onClick={() => setTab('gimnasio')}
@@ -61,7 +62,7 @@ export default function Notificaciones() {
               tab === 'gimnasio' ? 'bg-[#121212] text-white shadow-md' : 'text-gray-600 hover:text-[#1a1a1a]'
             }`}
           >
-            🏢 Gimnasio ({sociosEnCobro.length + sociosVencidos.length})
+            🏢 Gimnasio & Cobros ({sociosEnCobro.length + sociosVencidos.length})
           </button>
           <button
             onClick={() => setTab('profesores')}
@@ -70,14 +71,6 @@ export default function Notificaciones() {
             }`}
           >
             🏋️ Profesores ({todasLasConsultas.length})
-          </button>
-          <button
-            onClick={() => setTab('socios')}
-            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-              tab === 'socios' ? 'bg-[#121212] text-white shadow-md' : 'text-gray-600 hover:text-[#1a1a1a]'
-            }`}
-          >
-            👥 Socios & Cumpleaños ({sociosInactivos.length})
           </button>
         </div>
       </div>
@@ -101,23 +94,36 @@ export default function Notificaciones() {
                   </div>
                 </div>
                 <span className="text-xs font-black px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">
-                  {sociosEnCobro.length} socios
+                  {sociosEnCobro.length} {sociosEnCobro.length === 1 ? 'socio' : 'socios'}
                 </span>
               </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {sociosEnCobro.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-4 text-center">No hay socios en fecha de cobro inmediata.</p>
+                  <p className="text-xs text-gray-400 py-6 text-center">No hay socios con cobro próximo en los próximos 7 días.</p>
                 ) : (
                   sociosEnCobro.map(s => (
-                    <div key={s.id} className="p-3 rounded-2xl bg-amber-50/50 border border-amber-200/80 flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-xs text-[#1a1a1a]">{s.nombre} {s.apellido}</p>
-                        <p className="text-[10px] text-gray-500">Plan {s.tipoSuscripcion || s.suscripcion} · Vence {formatearFecha(s.fechaVencimiento || s.fechaVto)}</p>
+                    <div key={s.id} className="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-200/80 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-[#1a1a1a] truncate">{s.nombre} {s.apellido}</p>
+                        <p className="text-[10px] text-gray-500">Plan: {s.tipoSuscripcion || s.suscripcion || 'Mensual'} · Vence: <strong className="text-amber-900">{formatearFecha(s.fechaVencimiento || s.fechaVto)}</strong></p>
+                        <span className="inline-block mt-0.5 text-[9px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                          {s.infoEstado.description}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
-                        {s.telefono}
-                      </span>
+                      <div className="text-right shrink-0">
+                        {s.telefono && (
+                          <a
+                            href={`https://wa.me/${s.telefono.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-300 px-2.5 py-1 rounded-lg transition-colors"
+                          >
+                            <MessageSquare size={11} />
+                            {s.telefono}
+                          </a>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
@@ -132,28 +138,41 @@ export default function Notificaciones() {
                     <AlertCircle size={16} />
                   </span>
                   <div>
-                    <h3 className="font-bold text-sm text-[#1a1a1a]">Cuotas Vencidas Activas</h3>
-                    <p className="text-[11px] text-gray-500">Requiere regularización inmediata</p>
+                    <h3 className="font-bold text-sm text-[#1a1a1a]">Cuotas Vencidas</h3>
+                    <p className="text-[11px] text-gray-500">Requieren regularización de pago</p>
                   </div>
                 </div>
                 <span className="text-xs font-black px-2.5 py-1 rounded-full bg-red-100 text-[#e41d28]">
-                  {sociosVencidos.length} socios
+                  {sociosVencidos.length} {sociosVencidos.length === 1 ? 'socio' : 'socios'}
                 </span>
               </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                 {sociosVencidos.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-4 text-center">Todos los socios están al día.</p>
+                  <p className="text-xs text-gray-400 py-6 text-center">Todos los socios se encuentran al día.</p>
                 ) : (
                   sociosVencidos.map(s => (
-                    <div key={s.id} className="p-3 rounded-2xl bg-red-50/50 border border-red-200/80 flex items-center justify-between">
-                      <div>
-                        <p className="font-bold text-xs text-[#1a1a1a]">{s.nombre} {s.apellido}</p>
-                        <p className="text-[10px] text-gray-500">Venció: {formatearFecha(s.fechaVencimiento || s.fechaVto)}</p>
+                    <div key={s.id} className="p-3.5 rounded-2xl bg-red-50/50 border border-red-200/80 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-[#1a1a1a] truncate">{s.nombre} {s.apellido}</p>
+                        <p className="text-[10px] text-gray-500">Plan: {s.tipoSuscripcion || s.suscripcion || 'Mensual'} · Venció: <strong className="text-[#e41d28]">{formatearFecha(s.fechaVencimiento || s.fechaVto)}</strong></p>
+                        <span className="inline-block mt-0.5 text-[9px] font-bold text-[#e41d28] bg-red-100 px-1.5 py-0.5 rounded">
+                          {s.infoEstado.description}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-[#e41d28] bg-red-100 px-2 py-0.5 rounded-md">
-                        {s.telefono}
-                      </span>
+                      <div className="text-right shrink-0">
+                        {s.telefono && (
+                          <a
+                            href={`https://wa.me/${s.telefono.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#e41d28] bg-[#fde8e9] hover:bg-red-200 px-2.5 py-1 rounded-lg transition-colors"
+                          >
+                            <MessageSquare size={11} />
+                            {s.telefono}
+                          </a>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
@@ -180,7 +199,7 @@ export default function Notificaciones() {
 
           <div className="space-y-3">
             {todasLasConsultas.length === 0 ? (
-              <p className="text-xs text-gray-400 py-8 text-center">No hay consultas acordadas registradas.</p>
+              <p className="text-xs text-gray-400 py-8 text-center">No hay consultas acordadas registradas en el personal.</p>
             ) : (
               todasLasConsultas.map((c, idx) => (
                 <div key={idx} className="p-4 rounded-2xl bg-[#f8f9fa] border border-[#e0e0e0] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -206,37 +225,7 @@ export default function Notificaciones() {
           </div>
         </div>
       )}
-
-      {/* ==========================================
-          PESTAÑA 3: SOCIOS & INACTIVOS
-         ========================================== */}
-      {tab === 'socios' && (
-        <div className="bg-white rounded-3xl border border-[#e0e0e0] p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[#e0e0e0]">
-            <div>
-              <h3 className="font-black text-base text-[#1a1a1a]">Socios Inactivos (+90 días sin abonar)</h3>
-              <p className="text-xs text-gray-500">Candidatos a campaña de reactivación por WhatsApp o email</p>
-            </div>
-            <span className="text-xs font-bold bg-gray-200 text-gray-700 px-3 py-1 rounded-full">
-              {sociosInactivos.length} Inactivos
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {sociosInactivos.map(s => (
-              <div key={s.id} className="p-4 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-xs text-gray-800">{s.nombre} {s.apellido}</p>
-                  <p className="text-[10px] text-gray-500">Último plan: {s.tipoSuscripcion || s.suscripcion} · Venció: {formatearFecha(s.fechaVencimiento || s.fechaVto)}</p>
-                </div>
-                <span className="text-[10px] font-bold text-gray-600 bg-gray-200 px-2 py-0.5 rounded-md">
-                  {s.telefono}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
+

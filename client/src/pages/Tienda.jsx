@@ -67,16 +67,24 @@ function ModalProducto({ producto, onClose, onSave }) {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    onSave({
-      ...form,
-      costo: Number(form.costo),
-      margen: Number(form.margen),
-      precioVenta: Number(form.precioVenta),
-      stock: Number(form.stock)
-    })
-    onClose()
+    try {
+      await onSave({
+        ...form,
+        codigo: form.codigo.trim().toUpperCase(),
+        nombre: form.nombre.trim(),
+        costo: Number(form.costo) || 0,
+        margen: Number(form.margen) || 0,
+        precioVenta: Number(form.precioVenta) || 0,
+        stock: Number(form.stock) || 0,
+        stockMinimo: Number(producto?.stockMinimo) || 5,
+        categoria: form.categoria
+      })
+      onClose()
+    } catch (err) {
+      console.error('Error en formulario de producto:', err)
+    }
   }
 
   return (
@@ -304,15 +312,21 @@ export default function Tienda() {
       {/* Modal Producto */}
       {modalProdData !== null && (
         <ModalProducto
-          producto={modalProdData?.id ? modalProdData : null}
+          producto={modalProdData?._id || modalProdData?.id ? modalProdData : null}
           onClose={() => setModalProdData(null)}
           onSave={async (data) => {
-            if (modalProdData?.id) {
-              await updateProducto(modalProdData.id, data)
-              mostrarToast('✏️ Producto actualizado.')
-            } else {
-              await addProducto(data)
-              mostrarToast('✅ Nuevo producto agregado al inventario.')
+            const prodId = modalProdData?._id || modalProdData?.id
+            try {
+              if (prodId) {
+                await updateProducto(prodId, data)
+                mostrarToast('✏️ Producto actualizado correctamente.')
+              } else {
+                await addProducto(data)
+                mostrarToast('✅ Nuevo producto registrado en inventario.')
+              }
+            } catch (err) {
+              alert(`Error al guardar producto: ${err.message}`)
+              throw err
             }
           }}
         />
