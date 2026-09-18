@@ -20,22 +20,24 @@ export const configuracionApi = {
     })
   },
   getSedes: async () => {
-    return await apiFetch('/configuracion/sedes')
+    return await apiFetch('/sedes')
   },
   addSede: async (data) => {
-    return await apiFetch('/configuracion/sedes', {
+    return await apiFetch('/sedes', {
       method: 'POST',
       body: JSON.stringify(data)
     })
   },
   updateSede: async (sedeId, data) => {
-    return await apiFetch(`/configuracion/sedes/${sedeId}`, {
+    const id = typeof sedeId === 'object' ? (sedeId?._id || sedeId?.id) : sedeId
+    return await apiFetch(`/sedes/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     })
   },
   deleteSede: async (sedeId) => {
-    return await apiFetch(`/configuracion/sedes/${sedeId}`, {
+    const id = typeof sedeId === 'object' ? (sedeId?._id || sedeId?.id) : sedeId
+    return await apiFetch(`/sedes/${id}`, {
       method: 'DELETE'
     })
   }

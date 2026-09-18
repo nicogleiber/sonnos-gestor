@@ -1,11 +1,14 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const errorHandler = require('./middleware/errorHandler');
 const ApiError = require('./utils/ApiError');
 const cors = require('cors');
+const env = require('./config/env');
 const authenticate = require('./middleware/authenticate');
 const authorize = require('./middleware/authorize');
 const Gym = require('./models/gym.model');
 const User = require('./models/user.model');
+const GymStaff = require('./models/gymStaff.model');
 
 const app = express();
 app.use(cors());
@@ -20,61 +23,64 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'API funcionando correctamente' });
 });
 
+// Rutas de Autenticación y Registro (Públicas)
 app.use('/api/v1/auth', require('./routes/auth.routes'));
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/v1/gyms', require('./routes/gym.routes'));
 app.use('/api/gyms', require('./routes/gym.routes'));
 
-// Middleware para resolver o asignar el gimnasio por defecto para el cliente directo
-async function resolveDefaultGym(req, res, next) {
+// Middleware para resolver autenticación y contexto de gimnasio para el cliente directo (/api/...)
+async function resolveDirectClientContext(req, res, next) {
   try {
-    if (req.params.gymId) {
-      req.gymId = req.params.gymId;
-      return next();
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const payload = jwt.verify(token, env.jwt.secret);
+        const user = await User.findById(payload.sub);
+        if (user && user.active) {
+          req.user = user;
+        }
+      } catch (err) {
+        throw ApiError.unauthorized('Token inválido o expirado');
+      }
     }
-    if (req.headers['x-gym-id']) {
-      req.gymId = req.headers['x-gym-id'];
-      return next();
-    }
-
-    let gym = await Gym.findOne({ active: true }).sort({ createdAt: 1 });
-    if (!gym) {
-      gym = await Gym.create({
-        name: 'Sonnos Gym - Sede Central',
-        timezone: 'America/Argentina/Buenos_Aires',
-        paymentMethods: ['efectivo', 'transferencia_bancaria', 'qr_mercadopago'],
-        active: true,
-      });
-    }
-    req.gymId = gym._id.toString();
 
     if (!req.user) {
-      let adminUser = await User.findOne({ isPlatformAdmin: true });
-      if (!adminUser) {
-        adminUser = await User.findOne({ active: true });
-      }
-      if (adminUser) {
-        req.user = adminUser;
+      throw ApiError.unauthorized('Falta el token de autenticación');
+    }
+
+    let gymId = req.headers['x-gym-id'] || req.params.gymId;
+
+    if (gymId) {
+      req.gymId = gymId.toString();
+    } else {
+      const staff = await GymStaff.findOne({ user: req.user._id, status: 'active' });
+      if (staff) {
+        req.gymId = staff.gym.toString();
       } else {
-        req.user = {
-          _id: new (require('mongoose').Types.ObjectId)(),
-          firstName: 'Admin',
-          lastName: 'Sonnos',
-          email: 'admin@sonnos.com',
-          isPlatformAdmin: true,
-          active: true,
-        };
+        let defaultGym = await Gym.findOne({ active: true }).sort({ createdAt: 1 });
+        if (!defaultGym) {
+          defaultGym = await Gym.create({
+            name: 'Sonnos Gym - Sede Central',
+            timezone: 'America/Argentina/Buenos_Aires',
+            paymentMethods: ['efectivo', 'transferencia_bancaria', 'qr_mercadopago'],
+            active: true,
+          });
+        }
+        req.gymId = defaultGym._id.toString();
       }
     }
+
     next();
   } catch (err) {
     next(err);
   }
 }
 
-// Router directo para llamadas directas del frontend (/api/socios, /api/tarifas, etc.)
+// Router directo para llamadas del frontend (/api/socios, /api/tarifas, etc.)
 const directApiRouter = express.Router();
-directApiRouter.use(resolveDefaultGym);
+directApiRouter.use(resolveDirectClientContext);
 
 directApiRouter.use('/membership-plans', require('./routes/membershipPlan.routes'));
 directApiRouter.use('/tarifas', require('./routes/membershipPlan.routes'));
@@ -106,19 +112,23 @@ directApiRouter.use('/payments', require('./routes/payment.routes'));
 directApiRouter.use('/pagos', require('./routes/payment.routes'));
 
 directApiRouter.use('/dashboard', require('./routes/dashboard.routes'));
+directApiRouter.use('/configuracion/sedes', require('./routes/sede.routes'));
+directApiRouter.use('/sedes', require('./routes/sede.routes'));
 directApiRouter.use('/configuracion', require('./routes/gym.routes'));
 directApiRouter.use('/gym', require('./routes/gym.routes'));
 
 app.use('/api', directApiRouter);
 
-// Subrutas operativas aisladas por gimnasio (Multi-tenant)
+// Subrutas operativas aisladas por gimnasio (Multi-tenant: /api/v1/gyms/:gymId/...)
 const gymRouter = express.Router({ mergeParams: true });
 gymRouter.use(authenticate, authorize());
 
 gymRouter.use('/membership-plans', require('./routes/membershipPlan.routes'));
 gymRouter.use('/tarifas', require('./routes/membershipPlan.routes'));
+gymRouter.use('/planes', require('./routes/membershipPlan.routes'));
 gymRouter.use('/teachers', require('./routes/teacher.routes'));
 gymRouter.use('/profesores', require('./routes/teacher.routes'));
+gymRouter.use('/personal', require('./routes/teacher.routes'));
 
 gymRouter.use('/members', require('./routes/member.routes'));
 gymRouter.use('/socios', require('./routes/member.routes'));
@@ -143,6 +153,9 @@ gymRouter.use('/payments', require('./routes/payment.routes'));
 gymRouter.use('/pagos', require('./routes/payment.routes'));
 
 gymRouter.use('/dashboard', require('./routes/dashboard.routes'));
+gymRouter.use('/configuracion/sedes', require('./routes/sede.routes'));
+gymRouter.use('/sedes', require('./routes/sede.routes'));
+gymRouter.use('/configuracion', require('./routes/gym.routes'));
 
 gymRouter.get('/whoami', (req, res) => {
   res.json({ success: true, gymId: req.gymId, role: req.role });
@@ -156,4 +169,4 @@ app.use((req, res, next) => {
 
 app.use(errorHandler);
 
-module.exports = app;
+module.exports = app;

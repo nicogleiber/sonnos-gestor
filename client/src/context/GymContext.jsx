@@ -107,8 +107,9 @@ export function GymProvider({ children }) {
   }
 
   const updateSede = async (sedeId, sedeData) => {
+    const validId = typeof sedeId === 'object' ? (sedeId?._id || sedeId?.id) : sedeId
     try {
-      const data = await configuracionApi.updateSede(sedeId, sedeData)
+      const data = await configuracionApi.updateSede(validId, sedeData)
       const lista = data?.data || data || []
       if (Array.isArray(lista) && lista.length > 0) {
         setSedes(lista)
@@ -119,7 +120,7 @@ export function GymProvider({ children }) {
     }
     // Fallback local
     setSedes(prev => prev.map(s => {
-      if (s._id === sedeId || s.id === sedeId) {
+      if (s._id === validId || s.id === validId) {
         return { ...s, ...sedeData }
       }
       if (sedeData.principal) {
@@ -130,12 +131,13 @@ export function GymProvider({ children }) {
   }
 
   const deleteSede = async (sedeId) => {
+    const validId = typeof sedeId === 'object' ? (sedeId?._id || sedeId?.id) : sedeId
     try {
-      const data = await configuracionApi.deleteSede(sedeId)
+      const data = await configuracionApi.deleteSede(validId)
       const lista = data?.data || data || []
       if (Array.isArray(lista)) {
         setSedes(lista)
-        if (sedeActiva === sedeId) {
+        if (sedeActiva === validId) {
           setSedeActiva(lista.length > 0 ? (lista[0]._id || lista[0].id) : null)
         }
         return lista
@@ -145,8 +147,8 @@ export function GymProvider({ children }) {
     }
     // Fallback local
     setSedes(prev => {
-      const filtered = prev.filter(s => s._id !== sedeId && s.id !== sedeId)
-      if (sedeActiva === sedeId) {
+      const filtered = prev.filter(s => s._id !== validId && s.id !== validId)
+      if (sedeActiva === validId) {
         setSedeActiva(filtered.length > 0 ? (filtered[0]._id || filtered[0].id) : null)
       }
       return filtered

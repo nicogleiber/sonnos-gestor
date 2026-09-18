@@ -4,6 +4,37 @@ const { calculateExpirationDate } = require('../services/membership.service');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const mongoose = require('mongoose');
+function capitalizeWords(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
+function padDni(dni) {
+  if (!dni) return dni;
+  const digits = String(dni).replace(/\D/g, '').slice(0, 8);
+  if (digits.length === 7) return '0' + digits;
+  return digits || String(dni).trim();
+}
+
+function formatTelefono(tel) {
+  if (!tel) return tel;
+  if (typeof tel === 'object') {
+    const prefijo = String(tel.prefijo || '').replace(/\D/g, '');
+    const telefono = String(tel.telefono || tel.numero || '').replace(/\D/g, '');
+    return { prefijo, telefono };
+  }
+  const str = String(tel).replace(/\D/g, '');
+  if (str.length === 10) {
+    const prefijo = str.startsWith('0') ? str.slice(1, 3) : str.slice(0, 2);
+    return { prefijo, telefono: str.slice(prefijo.length) };
+  }
+  return { prefijo: '', telefono: str || String(tel).trim() };
+}
 
 const getMembers = catchAsync(async (req, res) => {
   const { q, estado, desde, hasta, abandonos, activo } = req.query;
@@ -85,11 +116,15 @@ const getMemberById = catchAsync(async (req, res) => {
 });
 
 const createMember = catchAsync(async (req, res) => {
-  const { dni, codigoFichaje, planId, fechaVencimiento } = req.body;
+  const { codigoFichaje, planId, fechaVencimiento } = req.body;
+  const cleanDni = req.body.dni ? padDni(req.body.dni) : req.body.dni;
+  const cleanNombre = req.body.nombre ? capitalizeWords(req.body.nombre) : req.body.nombre;
+  const cleanApellido = req.body.apellido ? capitalizeWords(req.body.apellido) : req.body.apellido;
+  const cleanTelefono = req.body.telefono !== undefined ? formatTelefono(req.body.telefono) : req.body.telefono;
 
   // Validar unicidad de DNI en el mismo gimnasio
-  if (dni) {
-    const existingDni = await Member.findOne({ gym: req.gymId, dni: dni.trim() });
+  if (cleanDni) {
+    const existingDni = await Member.findOne({ gym: req.gymId, dni: cleanDni });
     if (existingDni) {
       throw ApiError.conflict('Ya existe un socio con ese DNI en este gimnasio');
     }
@@ -108,6 +143,10 @@ const createMember = catchAsync(async (req, res) => {
 
   const memberData = {
     ...req.body,
+    nombre: cleanNombre,
+    apellido: cleanApellido,
+    dni: cleanDni,
+    telefono: cleanTelefono,
     gym: req.gymId,
   };
 
@@ -137,13 +176,19 @@ const createMember = catchAsync(async (req, res) => {
 });
 
 const updateMember = catchAsync(async (req, res) => {
-  const { dni, codigoFichaje, fechaVencimiento, activo } = req.body;
+  const { codigoFichaje, fechaVencimiento, activo } = req.body;
+  const updateData = { ...req.body };
+
+  if (updateData.nombre) updateData.nombre = capitalizeWords(updateData.nombre);
+  if (updateData.apellido) updateData.apellido = capitalizeWords(updateData.apellido);
+  if (updateData.dni) updateData.dni = padDni(updateData.dni);
+  if (updateData.telefono !== undefined) updateData.telefono = formatTelefono(updateData.telefono);
 
   // Validar que el DNI no pertenezca a otro socio del mismo gimnasio
-  if (dni) {
+  if (updateData.dni) {
     const existingDni = await Member.findOne({
       gym: req.gymId,
-      dni: dni.trim(),
+      dni: updateData.dni,
       _id: { $ne: req.params.id },
     });
     if (existingDni) {
@@ -162,8 +207,6 @@ const updateMember = catchAsync(async (req, res) => {
       throw ApiError.conflict('Ya existe otro socio con ese código de fichaje');
     }
   }
-
-  const updateData = { ...req.body };
 
   if (fechaVencimiento !== undefined || activo !== undefined) {
     const currentMember = await Member.findOne({ _id: req.params.id, gym: req.gymId });
@@ -288,7 +331,12 @@ const generateWhatsAppTemplates = catchAsync(async (req, res) => {
       }
     }
 
-    const telefonoLimpio = (member.telefono || '').replace(/\D/g, '');
+    let telefonoLimpio = '';
+    if (typeof member.telefono === 'object' && member.telefono !== null) {
+      telefonoLimpio = `${member.telefono.prefijo || ''}${member.telefono.telefono || ''}`.replace(/\D/g, '');
+    } else {
+      telefonoLimpio = (member.telefono || '').replace(/\D/g, '');
+    }
     const waLink = telefonoLimpio
       ? `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`
       : null;

@@ -25,8 +25,7 @@ const createMemberValidator = [
     .withMessage('Email inválido')
     .normalizeEmail(),
   body('telefono')
-    .optional()
-    .trim(),
+    .optional(),
   body('codigoFichaje')
     .optional()
     .trim(),
@@ -77,8 +76,7 @@ const updateMemberValidator = [
     .withMessage('Email inválido')
     .normalizeEmail(),
   body('telefono')
-    .optional()
-    .trim(),
+    .optional(),
   body('codigoFichaje')
     .optional()
     .trim(),

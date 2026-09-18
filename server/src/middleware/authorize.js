@@ -7,17 +7,21 @@ const { hasPermission } = require('../constants/permissions');
 // authorize(PERMISSIONS.MANAGE_MEMBERS) además exige ese permiso.
 function authorize(...requiredPermissions) {
     return catchAsync(async (req, res, next) => {
-        const { gymId } = req.params;
+        const gymId = req.params.gymId || req.gymId || req.headers['x-gym-id'];
 
         if (!gymId) {
             throw ApiError.badRequest('Falta gymId en la ruta');
         }
 
+        if (!req.user) {
+            throw ApiError.unauthorized('Falta el token de autenticación');
+        }
+
         // El platformAdmin puede entrar a cualquier gimnasio (soporte). Queda auditado.
         if (req.user.isPlatformAdmin) {
             console.warn(`[audit] platformAdmin ${req.user.email} accedió al gimnasio ${gymId}`);
-            req.gymId = gymId;
-            req.role = 'platformAdmin';
+            req.gymId = gymId.toString();
+            req.role = 'owner';
             return next();
         }
 
@@ -36,7 +40,7 @@ function authorize(...requiredPermissions) {
             }
         }
 
-        req.gymId = gymId;
+        req.gymId = gymId.toString();
         req.role = staff.role;
         req.gymStaff = staff;
         next();

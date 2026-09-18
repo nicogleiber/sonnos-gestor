@@ -36,6 +36,16 @@ const getSedes = catchAsync(async (req, res) => {
   res.json({ success: true, data: gym.sedes });
 });
 
+// GET detalle de una sede por ID
+const getSedeById = catchAsync(async (req, res) => {
+  const sedeId = req.params.sedeId || req.params.id;
+  const gym = await Gym.findById(req.gymId).select('sedes');
+  if (!gym) return res.status(404).json({ success: false, message: 'Gimnasio no encontrado' });
+  const sede = gym.sedes.id(sedeId);
+  if (!sede) return res.status(404).json({ success: false, message: 'Sede no encontrada' });
+  res.json({ success: true, data: sede });
+});
+
 // POST agregar una sede
 const addSede = catchAsync(async (req, res) => {
   const { nombre, direccion, telefono, principal } = req.body;
@@ -55,7 +65,7 @@ const addSede = catchAsync(async (req, res) => {
 
 // PUT actualizar una sede
 const updateSede = catchAsync(async (req, res) => {
-  const { sedeId } = req.params;
+  const sedeId = req.params.sedeId || req.params.id;
   const { nombre, direccion, telefono, principal } = req.body;
 
   const gym = await Gym.findById(req.gymId);
@@ -78,7 +88,7 @@ const updateSede = catchAsync(async (req, res) => {
 
 // DELETE eliminar una sede
 const deleteSede = catchAsync(async (req, res) => {
-  const { sedeId } = req.params;
+  const sedeId = req.params.sedeId || req.params.id;
   const gym = await Gym.findById(req.gymId);
   if (!gym) return res.status(404).json({ success: false, message: 'Gimnasio no encontrado' });
 
@@ -91,4 +101,4 @@ const whoiam = catchAsync(async (req, res) => {
   res.json({ success: true, data: { user: req.user, gym: req.gym, role: req.role } });
 });
 
-module.exports = { getGym, updateGym, getSedes, addSede, updateSede, deleteSede, whoiam };
+module.exports = { getGym, updateGym, getSedes, getSedeById, addSede, updateSede, deleteSede, whoiam };

@@ -1,21 +1,13 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { apiFetch, STORAGE_TOKEN_KEY, STORAGE_USER_KEY, STORAGE_GYM_KEY } from '../api/config'
 
 const AuthContext = createContext()
 
-const STORAGE_KEY = 'sonnos_auth_user'
-
-// Credenciales de prueba oficiales
-export const MOCK_CREDENTIALS = {
-  email: 'admin@sonnos.com',
-  password: 'sonnos2026',
-  name: 'Administrador Sonnos',
-  role: 'Administrador General',
-}
-
 export function AuthProvider({ children }) {
+  const [token, setToken] = useState(() => localStorage.getItem(STORAGE_TOKEN_KEY) || null)
   const [user, setUser] = useState(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = localStorage.getItem(STORAGE_USER_KEY)
       return stored ? JSON.parse(stored) : null
     } catch {
       return null
@@ -23,68 +15,187 @@ export function AuthProvider({ children }) {
   })
   const [loading, setLoading] = useState(false)
 
-  // Sincronizar localStorage cuando cambie el usuario
+  const logout = useCallback(() => {
+    setUser(null)
+    setToken(null)
+    localStorage.removeItem(STORAGE_TOKEN_KEY)
+    localStorage.removeItem(STORAGE_USER_KEY)
+    localStorage.removeItem(STORAGE_GYM_KEY)
+  }, [])
+
+  // Sincronizar logout ante eventos globales de expiración de token
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
-    } else {
-      localStorage.removeItem(STORAGE_KEY)
+    const handleGlobalLogout = () => {
+      logout()
     }
-  }, [user])
+    window.addEventListener('sonnos_auth_logout', handleGlobalLogout)
+    return () => window.removeEventListener('sonnos_auth_logout', handleGlobalLogout)
+  }, [logout])
 
   /**
-   * Iniciar sesión.
-   * Estructura lista para conectar con Firebase Auth:
-   * ej: const userCredential = await signInWithEmailAndPassword(auth, email, password)
+   * Iniciar sesión contra el backend real en MongoDB.
+   * Endpoint: POST /api/auth/login
    */
   const login = async (email, password) => {
     setLoading(true)
 
-    // Simulación de latencia de red de 400ms para UX natural
-    await new Promise(resolve => setTimeout(resolve, 400))
+    try {
+      const cleanEmail = email.trim().toLowerCase()
+      const cleanPass = password.trim()
 
-    const cleanEmail = email.trim().toLowerCase()
-    const cleanPass = password.trim()
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass }),
+      })
 
-    // Verificación con credenciales de prueba o cualquier cuenta corporativa @sonnos.com
-    if (
-      (cleanEmail === MOCK_CREDENTIALS.email.toLowerCase() && cleanPass === MOCK_CREDENTIALS.password) ||
-      (cleanEmail.endsWith('@sonnos.com') && cleanPass.length >= 6)
-    ) {
+      const authToken = data.token
+      const dbUser = data.user
+      const isPlatformAdmin = Boolean(data.isPlatformAdmin || dbUser.isPlatformAdmin)
+      const gyms = Array.isArray(data.gyms) ? data.gyms : []
+
+      const activeGym = gyms[0] || null
+      const gymId = activeGym?.gymId ? String(activeGym.gymId) : null
+      const gymName = activeGym?.gymName || 'Sonnos Gym - Sede Central'
+      const role = activeGym?.role || (isPlatformAdmin ? 'owner' : 'staff')
+
+      const firstName = dbUser.firstName || ''
+      const lastName = dbUser.lastName || ''
+      const fullName = `${firstName} ${lastName}`.trim() || cleanEmail.split('@')[0]
+      const avatar = ((firstName ? firstName.slice(0, 2) : '') || cleanEmail.slice(0, 2)).toUpperCase()
+
       const authUser = {
-        email: cleanEmail,
-        name: cleanEmail === MOCK_CREDENTIALS.email ? MOCK_CREDENTIALS.name : cleanEmail.split('@')[0],
-        role: MOCK_CREDENTIALS.role,
-        avatar: cleanEmail.slice(0, 2).toUpperCase(),
+        id: dbUser._id || dbUser.id,
+        _id: dbUser._id || dbUser.id,
+        email: dbUser.email || cleanEmail,
+        firstName,
+        lastName,
+        name: fullName,
+        role,
+        gymId,
+        gymName,
+        gyms,
+        isPlatformAdmin,
+        avatar,
         loginTime: new Date().toISOString(),
       }
+
+      // Persistir en localStorage
+      localStorage.setItem(STORAGE_TOKEN_KEY, authToken)
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(authUser))
+      if (gymId) {
+        localStorage.setItem(STORAGE_GYM_KEY, gymId)
+      }
+
+      setToken(authToken)
       setUser(authUser)
       setLoading(false)
+
       return { success: true, user: authUser }
-    } else {
+    } catch (err) {
       setLoading(false)
       return {
         success: false,
-        error: 'Credenciales inválidas. Verifica tu correo electrónico y contraseña.',
+        error: err.message || 'Error al iniciar sesión. Verifica tus credenciales.',
       }
     }
   }
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem(STORAGE_KEY)
+  /**
+   * Registro de un nuevo gimnasio / owner en la plataforma.
+   * Endpoint: POST /api/auth/register
+   */
+  const register = async ({ gymName, firstName, lastName, email, password }) => {
+    setLoading(true)
+    try {
+      const data = await apiFetch('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          gymName: gymName.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+        }),
+      })
+
+      const authToken = data.token
+      const dbUser = data.user
+      const gym = data.gym
+
+      const gymId = gym?._id ? String(gym._id) : String(gym?.id)
+      const fullName = `${dbUser.firstName || ''} ${dbUser.lastName || ''}`.trim() || dbUser.email.split('@')[0]
+      const avatar = ((dbUser.firstName ? dbUser.firstName.slice(0, 2) : '') || dbUser.email.slice(0, 2)).toUpperCase()
+
+      const authUser = {
+        id: dbUser._id || dbUser.id,
+        _id: dbUser._id || dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstName,
+        lastName: dbUser.lastName,
+        name: fullName,
+        role: 'owner',
+        gymId,
+        gymName: gym?.name || gymName,
+        gyms: [{ gymId, gymName: gym?.name || gymName, role: 'owner' }],
+        isPlatformAdmin: false,
+        avatar,
+        loginTime: new Date().toISOString(),
+      }
+
+      localStorage.setItem(STORAGE_TOKEN_KEY, authToken)
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(authUser))
+      if (gymId) {
+        localStorage.setItem(STORAGE_GYM_KEY, gymId)
+      }
+
+      setToken(authToken)
+      setUser(authUser)
+      setLoading(false)
+
+      return { success: true, user: authUser }
+    } catch (err) {
+      setLoading(false)
+      return {
+        success: false,
+        error: err.message || 'Error al registrar la cuenta.',
+      }
+    }
   }
 
-  const isAuthenticated = !!user
+  /**
+   * Cambiar de sede/gimnasio activo (para usuarios multi-sede / owners).
+   */
+  const switchGym = (newGymId) => {
+    if (!user || !user.gyms) return
+
+    const targetGym = user.gyms.find((g) => String(g.gymId) === String(newGymId))
+    if (!targetGym) return
+
+    const updatedUser = {
+      ...user,
+      gymId: String(targetGym.gymId),
+      gymName: targetGym.gymName,
+      role: targetGym.role || user.role,
+    }
+
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(updatedUser))
+    localStorage.setItem(STORAGE_GYM_KEY, String(targetGym.gymId))
+    setUser(updatedUser)
+  }
+
+  const isAuthenticated = Boolean(token && user)
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        token,
         isAuthenticated,
         loading,
         login,
+        register,
         logout,
+        switchGym,
       }}
     >
       {children}

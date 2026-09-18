@@ -11,17 +11,24 @@ import {
   ShieldCheck,
   Sparkles,
   KeyRound,
+  Building,
+  User,
 } from 'lucide-react'
-import { useAuth, MOCK_CREDENTIALS } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { isAuthenticated, login, loading } = useAuth()
+  const { isAuthenticated, login, register, loading } = useAuth()
   const navigate = useNavigate()
 
+  const [isRegisterMode, setIsRegisterMode] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [gymName, setGymName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState(null)
+  const [successMessage, setSuccessMessage] = useState(null)
 
   // Si ya está autenticado, redirigir al Dashboard
   if (isAuthenticated) {
@@ -31,23 +38,50 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+    setSuccessMessage(null)
 
-    if (!email || !password) {
-      setError('Por favor, completa todos los campos para ingresar.')
-      return
-    }
+    if (isRegisterMode) {
+      if (!gymName || !firstName || !lastName || !email || !password) {
+        setError('Por favor, completa todos los campos del registro.')
+        return
+      }
+      if (password.length < 8 || !/\d/.test(password)) {
+        setError('La contraseña debe tener al menos 8 caracteres y contener un número.')
+        return
+      }
 
-    const res = await login(email, password)
-    if (res.success) {
-      navigate('/', { replace: true })
+      const res = await register({
+        gymName,
+        firstName,
+        lastName,
+        email,
+        password,
+      })
+
+      if (res.success) {
+        navigate('/', { replace: true })
+      } else {
+        setError(res.error)
+      }
     } else {
-      setError(res.error)
+      if (!email || !password) {
+        setError('Por favor, completa todos los campos para ingresar.')
+        return
+      }
+
+      const res = await login(email, password)
+      if (res.success) {
+        navigate('/', { replace: true })
+      } else {
+        setError(res.error)
+      }
     }
   }
 
   const handleFillDemo = () => {
-    setEmail(MOCK_CREDENTIALS.email)
-    setPassword(MOCK_CREDENTIALS.password)
+    setIsRegisterMode(false)
+    setEmail('admin@sonnos.com')
+    setPassword('sonnos2026')
     setError(null)
   }
 
@@ -75,24 +109,58 @@ export default function Login() {
 
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1a1a1a] border border-[#2e2e2e] text-xs text-gray-400">
           <ShieldCheck size={14} className="text-[#e41d28]" />
-          <span>Acceso Seguro Encriptado</span>
+          <span>Acceso Seguro Encriptado (MongoDB)</span>
         </div>
       </header>
 
-      {/* Main Login Card */}
+      {/* Main Login/Register Card */}
       <main className="flex-1 flex items-center justify-center px-4 py-8 z-10">
         <div className="w-full max-w-md bg-[#1a1a1a] border border-[#2b2b2b] rounded-3xl p-8 md:p-10 shadow-2xl relative">
           {/* Card Brand Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="w-14 h-14 bg-[#121212] border border-[#333] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
               <KeyRound size={26} className="text-[#e41d28]" />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-white">
-              Iniciar Sesión
+              {isRegisterMode ? 'Crear Gimnasio' : 'Iniciar Sesión'}
             </h2>
             <p className="text-gray-400 text-xs mt-1.5">
-              Ingresa tus credenciales autorizadas de Sonnos Gestor
+              {isRegisterMode
+                ? 'Registra tu gimnasio y cuenta de administrador'
+                : 'Ingresa con tu cuenta registrada en Sonnos Gestor'}
             </p>
+          </div>
+
+          {/* Toggle Login / Register */}
+          <div className="flex bg-[#121212] p-1 rounded-2xl border border-[#2e2e2e] mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegisterMode(false)
+                setError(null)
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                !isRegisterMode
+                  ? 'bg-[#e41d28] text-white shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegisterMode(true)
+                setError(null)
+              }}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                isRegisterMode
+                  ? 'bg-[#e41d28] text-white shadow-md'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Registrar Gimnasio
+            </button>
           </div>
 
           {/* Error Message */}
@@ -105,10 +173,65 @@ export default function Login() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Campo 1: Usuario / Email */}
+            {isRegisterMode && (
+              <>
+                {/* Nombre del Gimnasio */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wide">
+                    Nombre del Gimnasio
+                  </label>
+                  <div className="relative">
+                    <Building size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      value={gymName}
+                      onChange={(e) => setGymName(e.target.value)}
+                      placeholder="Ej: Iron Fitness Club"
+                      className="w-full bg-[#121212] border border-[#333] focus:border-[#e41d28] rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#e41d28]/30 transition-all font-medium"
+                    />
+                  </div>
+                </div>
+
+                {/* Nombre y Apellido */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wide">
+                      Nombre
+                    </label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      <input
+                        type="text"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Nicolás"
+                        className="w-full bg-[#121212] border border-[#333] focus:border-[#e41d28] rounded-2xl pl-11 pr-3 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#e41d28]/30 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wide">
+                      Apellido
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Gómez"
+                      className="w-full bg-[#121212] border border-[#333] focus:border-[#e41d28] rounded-2xl px-4 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#e41d28]/30 transition-all font-medium"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Email */}
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wide">
-                Usuario / Correo Electrónico
+                Correo Electrónico
               </label>
               <div className="relative">
                 <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
@@ -116,14 +239,14 @@ export default function Login() {
                   type="email"
                   required
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@sonnos.com"
                   className="w-full bg-[#121212] border border-[#333] focus:border-[#e41d28] rounded-2xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#e41d28]/30 transition-all font-medium"
                 />
               </div>
             </div>
 
-            {/* Campo 2: Contraseña */}
+            {/* Contraseña */}
             <div>
               <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wide">
                 Contraseña
@@ -134,13 +257,13 @@ export default function Login() {
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full bg-[#121212] border border-[#333] focus:border-[#e41d28] rounded-2xl pl-11 pr-11 py-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-[#e41d28]/30 transition-all font-medium"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(p => !p)}
+                  onClick={() => setShowPassword((p) => !p)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-0.5 cursor-pointer"
                   title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
                 >
@@ -149,7 +272,7 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Botón Principal Iniciar Sesión */}
+            {/* Botón Principal */}
             <button
               type="submit"
               disabled={loading}
@@ -158,11 +281,11 @@ export default function Login() {
               {loading ? (
                 <div className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Verificando...</span>
+                  <span>{isRegisterMode ? 'Registrando Gimnasio...' : 'Verificando con MongoDB...'}</span>
                 </div>
               ) : (
                 <>
-                  <span>Iniciar Sesión</span>
+                  <span>{isRegisterMode ? 'Crear Cuenta y Gimnasio' : 'Iniciar Sesión'}</span>
                   <ArrowRight size={17} />
                 </>
               )}
@@ -170,26 +293,28 @@ export default function Login() {
           </form>
 
           {/* Quick Demo Helper */}
-          <div className="mt-6 pt-5 border-t border-[#292929] text-center">
-            <button
-              type="button"
-              onClick={handleFillDemo}
-              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#e41d28] bg-[#121212] border border-[#333] hover:border-[#e41d28]/40 px-3.5 py-2 rounded-xl transition-all cursor-pointer"
-            >
-              <Sparkles size={13} className="text-[#e41d28]" />
-              <span>Usar credenciales de prueba demo</span>
-            </button>
-            <p className="text-[11px] font-mono text-gray-600 mt-2">
-              admin@sonnos.com · sonnos2026
-            </p>
-          </div>
+          {!isRegisterMode && (
+            <div className="mt-6 pt-5 border-t border-[#292929] text-center">
+              <button
+                type="button"
+                onClick={handleFillDemo}
+                className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#e41d28] bg-[#121212] border border-[#333] hover:border-[#e41d28]/40 px-3.5 py-2 rounded-xl transition-all cursor-pointer"
+              >
+                <Sparkles size={13} className="text-[#e41d28]" />
+                <span>Usar credenciales de prueba demo</span>
+              </button>
+              <p className="text-[11px] font-mono text-gray-600 mt-2">
+                admin@sonnos.com · sonnos2026
+              </p>
+            </div>
+          )}
         </div>
       </main>
 
       {/* Footer Note */}
       <footer className="p-6 text-center text-xs text-gray-500 z-10">
         <p className="max-w-md mx-auto">
-          Acceso exclusivo para clientes <strong>Sonnos Gestor</strong>. Si necesitas credenciales, contacta a soporte corporativo.
+          Acceso exclusivo para clientes <strong>Sonnos Gestor</strong>. Autenticado y aislado por gimnasio.
         </p>
         <p className="text-[10px] text-gray-600 mt-1">
           © 2026 Sonnos Fitness Systems · Todos los derechos reservados.

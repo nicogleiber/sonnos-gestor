@@ -40,7 +40,12 @@ export default function WhatsAppModal({ isOpen, onClose, sociosSeleccionados }) 
 
   const formatearTelefono = (tel) => {
     if (!tel) return ''
-    let clean = tel.replace(/\D/g, '')
+    let clean = ''
+    if (typeof tel === 'object') {
+      clean = `${tel.prefijo || ''}${tel.telefono || tel.numero || ''}`.replace(/\D/g, '')
+    } else {
+      clean = String(tel).replace(/\D/g, '')
+    }
     if (clean.startsWith('0')) clean = clean.substring(1)
     if (clean.startsWith('549')) return clean
     if (clean.startsWith('54')) return '549' + clean.substring(2)

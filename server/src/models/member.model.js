@@ -31,8 +31,8 @@ const memberSchema = new mongoose.Schema(
       lowercase: true,
     },
     telefono: {
-      type: String,
-      trim: true,
+      type: mongoose.Schema.Types.Mixed,
+      default: () => ({ prefijo: '', telefono: '' }),
     },
     codigoFichaje: {
       type: String,

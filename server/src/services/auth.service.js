@@ -48,15 +48,21 @@ async function login({ email, password }) {
   user.lastLoginAt = new Date();
   await user.save();
 
-  const staffRecords = user.isPlatformAdmin
-    ? []
-    : await GymStaff.find({ user: user._id, status: 'active' }).populate('gym', 'name');
+  let staffRecords = await GymStaff.find({ user: user._id, status: 'active' }).populate('gym', 'name');
+
+  // Si es platformAdmin y no tiene staff directo, vincular a los gimnasios activos como owner
+  if (user.isPlatformAdmin && staffRecords.length === 0) {
+    const allGyms = await Gym.find({ active: true });
+    staffRecords = allGyms.map((g) => ({ gym: g, role: ROLES.OWNER }));
+  }
 
   return {
     token: signToken(user._id),
     user,
     isPlatformAdmin: user.isPlatformAdmin,
-    gyms: staffRecords.map((s) => ({ gymId: s.gym._id, gymName: s.gym.name, role: s.role })),
+    gyms: staffRecords
+      .filter((s) => s.gym)
+      .map((s) => ({ gymId: s.gym._id || s.gym, gymName: s.gym.name || 'Gimnasio', role: s.role })),
   };
 }
 

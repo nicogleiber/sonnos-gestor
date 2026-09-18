@@ -32,6 +32,66 @@ import { getEstadoPago, formatearFecha, calcularNuevaFechaVtoCobro } from '../ut
 import WhatsAppModal from '../components/WhatsAppModal'
 
 // ============================================
+// HELPERS DE FORMATO Y VALIDACIÓN
+// ============================================
+function capitalizeWords(str) {
+  if (!str || typeof str !== 'string') return str || ''
+  return str
+    .toLowerCase()
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+function sanitizeDni(dni) {
+  if (!dni) return ''
+  return String(dni).replace(/\D/g, '').slice(0, 8)
+}
+
+function padDni(dni) {
+  const digits = sanitizeDni(dni)
+  if (digits.length === 7) return '0' + digits
+  return digits
+}
+
+function parseTelefono(tel) {
+  if (!tel) return { prefijo: '', numero: '' }
+  if (typeof tel === 'object') {
+    return {
+      prefijo: String(tel.prefijo || '').replace(/\D/g, '').slice(0, 5),
+      numero: String(tel.telefono || tel.numero || '').replace(/\D/g, ''),
+    }
+  }
+  const clean = String(tel).replace(/\D/g, '')
+  if (clean.length === 10) {
+    const prefijo = clean.startsWith('0') ? clean.slice(0, 3) : clean.slice(0, 2)
+    return { prefijo, numero: clean.slice(prefijo.length) }
+  }
+  return { prefijo: '', numero: clean }
+}
+
+function formatTelefonoDisplay(tel) {
+  if (!tel) return ''
+  if (typeof tel === 'object') {
+    return `${tel.prefijo || ''}${tel.telefono || tel.numero || ''}`
+  }
+  return String(tel)
+}
+
+const INITIAL_SOCIO_FORM = {
+  nombre: '',
+  apellido: '',
+  prefijo: '',
+  numero: '',
+  email: '',
+  dni: '',
+  genero: 'Prefiero no decirlo',
+  suscripcion: '',
+  activo: true,
+  observaciones: '',
+}
+
+// ============================================
 // MODAL: NUEVO / EDITAR SOCIO
 // ============================================
 function ModalSocio({ socio, onClose, onSave }) {
@@ -39,22 +99,65 @@ function ModalSocio({ socio, onClose, onSave }) {
 
   const isEditing = !!socio
 
-  const [form, setForm] = useState({
-    nombre: socio?.nombre || '',
-    apellido: socio?.apellido || '',
-    telefono: socio?.telefono || '',
-    email: socio?.email || '',
-    dni: socio?.dni || '',
-    genero: socio?.genero || 'Prefiero no decirlo',
-    suscripcion: socio?.tipoSuscripcion || socio?.suscripcion || planesActivos[0]?.nombre || 'Pase Libre Mensual',
-    activo: socio?.activo !== undefined ? socio.activo : true,
-    observaciones: socio?.observaciones || '',
+  const [form, setForm] = useState(() => {
+    if (socio) {
+      const parsedTel = parseTelefono(socio.telefono)
+      return {
+        nombre: capitalizeWords(socio.nombre || ''),
+        apellido: capitalizeWords(socio.apellido || ''),
+        prefijo: parsedTel.prefijo,
+        numero: parsedTel.numero,
+        email: socio.email || '',
+        dni: padDni(socio.dni || ''),
+        genero: socio.genero || 'Prefiero no decirlo',
+        suscripcion: socio.tipoSuscripcion || socio.suscripcion || planesActivos[0]?.nombre || 'Pase Libre Mensual',
+        activo: socio.activo !== undefined ? socio.activo : true,
+        observaciones: socio.observaciones || '',
+      }
+    }
+    return {
+      ...INITIAL_SOCIO_FORM,
+      suscripcion: planesActivos[0]?.nombre || 'Pase Libre Mensual',
+    }
   })
+
+  const [errorTel, setErrorTel] = useState('')
+
+  // Sincronizar form si cambia socio prop
+  useEffect(() => {
+    if (socio) {
+      const parsedTel = parseTelefono(socio.telefono)
+      setForm({
+        nombre: capitalizeWords(socio.nombre || ''),
+        apellido: capitalizeWords(socio.apellido || ''),
+        prefijo: parsedTel.prefijo,
+        numero: parsedTel.numero,
+        email: socio.email || '',
+        dni: padDni(socio.dni || ''),
+        genero: socio.genero || 'Prefiero no decirlo',
+        suscripcion: socio.tipoSuscripcion || socio.suscripcion || planesActivos[0]?.nombre || 'Pase Libre Mensual',
+        activo: socio.activo !== undefined ? socio.activo : true,
+        observaciones: socio.observaciones || '',
+      })
+    } else {
+      setForm({
+        ...INITIAL_SOCIO_FORM,
+        suscripcion: planesActivos[0]?.nombre || 'Pase Libre Mensual',
+      })
+    }
+    setErrorTel('')
+  }, [socio, planesActivos])
 
   // Fecha de vencimiento calculada automáticamente para nuevos socios o si cambia el plan
   const fechaVencimientoCalculada = isEditing && socio?.fechaVencimiento
     ? socio.fechaVencimiento
     : calcularVencimientoPorPlan(new Date(), form.suscripcion)
+
+  const handleClose = () => {
+    setForm(INITIAL_SOCIO_FORM)
+    setErrorTel('')
+    onClose()
+  }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -64,10 +167,59 @@ function ModalSocio({ socio, onClose, onSave }) {
     }))
   }
 
+  const handleNombreBlur = (field) => {
+    setForm(prev => ({
+      ...prev,
+      [field]: capitalizeWords(prev[field])
+    }))
+  }
+
+  const handleDniChange = (e) => {
+    const val = sanitizeDni(e.target.value)
+    setForm(prev => ({ ...prev, dni: val }))
+  }
+
+  const handleDniBlur = () => {
+    setForm(prev => ({ ...prev, dni: padDni(prev.dni) }))
+  }
+
+  const handlePrefijoChange = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 5)
+    setForm(prev => ({ ...prev, prefijo: val }))
+    setErrorTel('')
+  }
+
+  const handleNumeroChange = (e) => {
+    const maxLen = Math.max(0, 10 - form.prefijo.length)
+    const val = e.target.value.replace(/\D/g, '').slice(0, maxLen)
+    setForm(prev => ({ ...prev, numero: val }))
+    setErrorTel('')
+  }
+
+  const totalDigitosTel = form.prefijo.length + form.numero.length
+
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    if (totalDigitosTel !== 10) {
+      setErrorTel(`El teléfono debe sumar exactamente 10 dígitos (actualmente ${totalDigitosTel}: ${form.prefijo.length} de prefijo y ${form.numero.length} de número).`)
+      return
+    }
+
+    const finalNombre = capitalizeWords(form.nombre)
+    const finalApellido = capitalizeWords(form.apellido)
+    const finalDni = padDni(form.dni)
+    const finalTelefono = {
+      prefijo: form.prefijo,
+      telefono: form.numero,
+    }
+
     onSave({
       ...form,
+      nombre: finalNombre,
+      apellido: finalApellido,
+      dni: finalDni,
+      telefono: finalTelefono,
       tipoSuscripcion: form.suscripcion,
       suscripcion: form.suscripcion,
       fechaVencimiento: fechaVencimientoCalculada,
@@ -75,6 +227,9 @@ function ModalSocio({ socio, onClose, onSave }) {
       fechaAlta: isEditing ? (socio.fechaAlta || socio.createdAt) : new Date().toISOString(),
       estadoPago: isEditing ? socio.estadoPago : 'Al Día',
     })
+
+    setForm(INITIAL_SOCIO_FORM)
+    setErrorTel('')
     onClose()
   }
 
@@ -97,7 +252,7 @@ function ModalSocio({ socio, onClose, onSave }) {
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-[#242424] transition-colors"
           >
             <X size={20} />
@@ -108,23 +263,25 @@ function ModalSocio({ socio, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Nombre</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Nombre *</label>
               <input
                 name="nombre"
                 required
                 value={form.nombre}
                 onChange={handleChange}
+                onBlur={() => handleNombreBlur('nombre')}
                 placeholder="Ej: Marcos"
                 className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Apellido</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Apellido *</label>
               <input
                 name="apellido"
                 required
                 value={form.apellido}
                 onChange={handleChange}
+                onBlur={() => handleNombreBlur('apellido')}
                 placeholder="Ej: Rossi"
                 className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
               />
@@ -133,11 +290,15 @@ function ModalSocio({ socio, onClose, onSave }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">DNI / Documento</label>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                DNI / Documento <span className="text-[10px] text-gray-400 font-normal">(Solo números)</span>
+              </label>
               <input
                 name="dni"
                 value={form.dni}
-                onChange={handleChange}
+                onChange={handleDniChange}
+                onBlur={handleDniBlur}
+                maxLength={8}
                 placeholder="Ej: 38192831"
                 className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
               />
@@ -157,30 +318,59 @@ function ModalSocio({ socio, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Teléfono (WhatsApp)</label>
-              <input
-                name="telefono"
-                required
-                value={form.telefono}
-                onChange={handleChange}
-                placeholder="11XXXXXXXX"
-                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
-              />
+          {/* Teléfono (Prefijo + Número) */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                Teléfono WhatsApp *
+              </label>
+              <span className={`text-[11px] font-bold ${totalDigitosTel === 10 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {totalDigitosTel}/10 dígitos {totalDigitosTel === 10 ? '✓' : ''}
+              </span>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Email</label>
-              <input
-                name="email"
-                type="email"
-                required
-                value={form.email}
-                onChange={handleChange}
-                placeholder="socio@email.com"
-                className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
-              />
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="col-span-1">
+                <input
+                  name="prefijo"
+                  required
+                  value={form.prefijo}
+                  onChange={handlePrefijoChange}
+                  placeholder="Prefijo (ej: 011)"
+                  maxLength={5}
+                  className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-3 py-2.5 text-sm text-center font-mono focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
+                />
+              </div>
+              <div className="col-span-2">
+                <input
+                  name="numero"
+                  required
+                  value={form.numero}
+                  onChange={handleNumeroChange}
+                  placeholder="Número (ej: 1580001122)"
+                  maxLength={10}
+                  className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
+                />
+              </div>
             </div>
+            {errorTel && (
+              <p className="text-xs text-[#e41d28] font-bold mt-1.5">{errorTel}</p>
+            )}
+            <p className="text-[10px] text-gray-400 mt-1">
+              Prefijo (2 a 5 dígitos) + Número. La suma total debe ser exactamente 10 dígitos.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Email</label>
+            <input
+              name="email"
+              type="email"
+              required
+              value={form.email}
+              onChange={handleChange}
+              placeholder="socio@email.com"
+              className="w-full border border-[#e0e0e0] bg-[#f8f9fa] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#e41d28] focus:bg-white transition-all text-[#1a1a1a]"
+            />
           </div>
 
           <div>
@@ -218,7 +408,7 @@ function ModalSocio({ socio, onClose, onSave }) {
           <div className="flex gap-3 pt-3 border-t border-[#e0e0e0]">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 border border-[#e0e0e0] text-gray-700 rounded-xl py-3 text-sm font-bold hover:bg-[#f1f3f5] transition-colors"
             >
               Cancelar
