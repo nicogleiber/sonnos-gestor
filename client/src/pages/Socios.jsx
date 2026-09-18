@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Users,
   UserPlus,
@@ -579,7 +579,8 @@ export default function Socios() {
 
   // Filtrado
   const filtered = socios.filter(s => {
-    const matchBusqueda = `${s.nombre} ${s.apellido} ${s.email} ${s.telefono} ${s.dni || ''}`.toLowerCase().includes(busqueda.toLowerCase())
+    const telStr = formatTelefonoDisplay(s.telefono)
+    const matchBusqueda = `${s.nombre} ${s.apellido} ${s.email} ${telStr} ${s.dni || ''}`.toLowerCase().includes(busqueda.toLowerCase())
     const subActual = s.tipoSuscripcion || s.suscripcion
     const matchSub = filtroSub === 'Todos' || subActual === filtroSub
 
@@ -893,7 +894,7 @@ export default function Socios() {
 
                       {/* Contacto */}
                       <td className="p-4">
-                        <p className="font-bold text-[#1a1a1a]">{s.telefono}</p>
+                        <p className="font-bold text-[#1a1a1a]">{formatTelefonoDisplay(s.telefono)}</p>
                         <p className="text-[10px] text-gray-400 truncate max-w-[140px]">{s.email}</p>
                       </td>
 
